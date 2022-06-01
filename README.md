@@ -2,14 +2,20 @@
 
 Submit BOLOs to SharePoint list via power app and post to Teams channel
 
+![Screenshot](https://github.com/MSPFE2019/Microsoft-Bolo-App/blob/main/Loading_BOLO_App.jpg)
+![Screenshot](https://github.com/MSPFE2019/Microsoft-Bolo-App/blob/main/Main%20Screen.jpg)
+![Screenshot](https://github.com/MSPFE2019/Microsoft-Bolo-App/blob/main/SearchVehicle.jpg)
+
+
 This app uses standard Power Platform Connectors with a SharePoint Backend.
 
-To import a solution:
+### To import a solution:
+
 Sign into Power Apps and select Solutions from the left navigation.
 
 On the command bar, select Import.
 
-Microsoft Bolo App, Click to download solution.
+[Microsoft Bolo App, Click to download solution.](https://github.com/MSPFE2019/Microsoft-Bolo-App/blob/main/MicrosoftBOLOApp_1_0_0_4.zip)
 
 On the Import a solution page, select Browse to locate the compressed (.zip or .cab) file that contains the solution you want to import.
 
@@ -21,7 +27,7 @@ If your solution contains connection references, you’ll be prompted to select 
 
 The solution has one environment variable:
 
-SPO Site for BOLO App- (https://contoso.sharepoint.com/sites/Office365ManagementApp)
+SPO Site for BOLO App- (https://contoso.sharepoint.com/sites/MicrosoftBoloApp)
 
 
 
