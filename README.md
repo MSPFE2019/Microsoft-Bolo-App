@@ -42,13 +42,13 @@ Account need E1 - E5 or G1 - G5 license with Power App/Power Automate apps added
 
 ### Imported Components:
 #### Flows
-CreateList_EyeColor : List for Eye Colors
-CreateList_HairColor : List for Hair Colors
-CreateList_ListofState : List for State Name and Abbr
-CreateList_PersonBolo : Person BOLO will stored here
-CreateList_Vehicle : Vehicle BOLO will stored here
-CreateList_VehicleColor : List of Vehicle Colors
-CreateList_VehicleList : List of Vehicles Make
+*CreateList_EyeColor : List for Eye Colors
+*CreateList_HairColor : List for Hair Colors
+*CreateList_ListofState : List for State Name and Abbr
+*CreateList_PersonBolo : Person BOLO will stored here
+*CreateList_Vehicle : Vehicle BOLO will stored here
+*CreateList_VehicleColor : List of Vehicle Colors
+*CreateList_VehicleList : List of Vehicles Make
 
 #### App
 BOLO App(Phone)v2
@@ -56,7 +56,7 @@ BOLO App(Phone)v2
 
 #### Setup app
 
-Populate created lists(Colors,Vehicles, States on the site with data.
-Navigate to PersonBolo List(Change or add to the Bolo Type field)
-Navigate to Vehicle List(Change or add to the Bolo Type field)
-Remove SharePoint connections from power apps, re-add new connect to new site.
+*Populate created lists(Colors,Vehicles, States on the site with data.
+*Navigate to PersonBolo List(Change or add to the Bolo Type field)
+*Navigate to Vehicle List(Change or add to the Bolo Type field)
+*Remove SharePoint connections from power apps, re-add new connect to new site.
