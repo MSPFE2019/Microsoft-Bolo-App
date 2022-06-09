@@ -69,3 +69,19 @@ BOLO App(Phone)v2
 *Navigate to Vehicle List(Change or add to the Bolo Type field)
 
 *Remove SharePoint connections from power apps, re-add new connect to new site.
+
+#### Setup 
+
+##### Missing Person Adaptive Card
+*Create the Teams channels that correspond with your BOLO Type
+
+*Open and Edit "Missing Person AC Posting", go to Switch(Last Step in the flow), Adjust Case and Case 2 to match your BOLO Type
+
+*Adjust "Post adaptive card in a chat or channel" steps and adjust the Team and Channel Name
+
+##### Vehicle Adaptive Card
+*Create the Teams channels that correspond with your BOLO Type
+
+*Open and Edit "Vehicle AC Posting", go to Switch(Last Step in the flow), Adjust Case and Case 2 to match your BOLO Type
+
+*Adjust "Post adaptive card in a chat or channel" steps and adjust the Team and Channel Name
