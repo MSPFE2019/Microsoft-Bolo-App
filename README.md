@@ -1,33 +1,33 @@
 # Microsoft-Bolo-App
 
-Submit BOLOs to SharePoint list via power app and post to Teams channel
+Submit BOLOs to a SharePoint list through a Power App, then post to a Teams channel.
 
 ![Screenshot](https://github.com/MSPFE2019/Microsoft-Bolo-App/blob/main/Loading_BOLO_App.jpg)
 ![Screenshot](https://github.com/MSPFE2019/Microsoft-Bolo-App/blob/main/Main%20Screen.jpg)
 ![Screenshot](https://github.com/MSPFE2019/Microsoft-Bolo-App/blob/main/SearchVehicle.jpg)
 
 
-This app uses standard Power Platform Connectors with a SharePoint Backend.
+This app uses standard Power Platform connectors with a SharePoint backend.
 
-### To import a solution:
+## Import the solution
 
-Sign into Power Apps and select Solutions from the left navigation.
+Sign in to Power Apps and select **Solutions** from the left navigation.
 
-On the command bar, select Import.
+On the command bar, select **Import**.
 
-[Microsoft Bolo App, Click to download solution.](https://github.com/MSPFE2019/Microsoft-Bolo-App/blob/main/MicrosoftBOLOApp_1_0_0_4.zip)
+[Download Microsoft Bolo App solution](https://github.com/MSPFE2019/Microsoft-Bolo-App/blob/main/MicrosoftBOLOApp_1_0_0_4.zip)
 
 On the Import a solution page, select Browse to locate the compressed (.zip or .cab) file that contains the solution you want to import.
 
 Select Next.
 
-Information about the solution is displayed. By default, in the Advanced settings section, if SDK messages and flows exist in the solution, they will be imported. Clear the Enable SDK messages and flows included in the solution option if you want them to import in an inactive state.
+Information about the solution is displayed. By default, in the **Advanced settings** section, if SDK messages and flows exist in the solution, they are imported. Clear the **Enable SDK messages and flows included in the solution** option if you want them imported in an inactive state.
 
 If your solution contains connection references, you’ll be prompted to select the connections you want. If a connection does not already exist, create a new one. Select Next.
 
 The solution has one environment variable:
 
-SPO Site for BOLO App- (https://contoso.sharepoint.com/sites/MicrosoftBoloApp)
+`SPO Site for BOLO App` - `https://contoso.sharepoint.com/sites/MicrosoftBoloApp`
 
 
 
@@ -36,52 +36,40 @@ If missing dependencies are detected in the target environment, a list of the de
 Select Import.
 
 
-### Service Account for Power Automate:
-Account need E1 - E5 or G1 - G5 license with Power App/Power Automate apps added
+## Service account for Power Automate
+
+The account needs an E1-E5 or G1-G5 license with Power Apps and Power Automate enabled.
 
 
-### Imported Components:
-#### Flows
-*CreateList_EyeColor : List for Eye Colors
+## Imported components
 
-*CreateList_HairColor : List for Hair Colors
+### Flows
+- `CreateList_EyeColor`: List for eye colors
+- `CreateList_HairColor`: List for hair colors
+- `CreateList_ListofState`: List for state names and abbreviations
+- `CreateList_PersonBolo`: Person BOLO records are stored here
+- `CreateList_Vehicle`: Vehicle BOLO records are stored here
+- `CreateList_VehicleColor`: List of vehicle colors
+- `CreateList_VehicleList`: List of vehicle makes
 
-*CreateList_ListofState : List for State Name and Abbr
+### App
+`BOLO App (Phone) v2`
 
-*CreateList_PersonBolo : Person BOLO will stored here
+## App setup
 
-*CreateList_Vehicle : Vehicle BOLO will stored here
+- Populate the created lists (colors, vehicles, and states) on the site with data.
+- Navigate to the `PersonBolo` list and change or add values to the `Bolo Type` field.
+- Navigate to the `Vehicle` list and change or add values to the `Bolo Type` field.
+- Remove SharePoint connections from Power Apps, then re-add a connection to the new site.
 
-*CreateList_VehicleColor : List of Vehicle Colors
+## Teams adaptive card setup
 
-*CreateList_VehicleList : List of Vehicles Make
+### Missing person adaptive card
+- Create Teams channels that correspond to your BOLO type.
+- Open and edit `Missing Person AC Posting`. In the `Switch` step (last step in the flow), adjust `Case` and `Case 2` to match your BOLO type.
+- Update `Post adaptive card in a chat or channel` steps with the correct team and channel names.
 
-#### App
-BOLO App(Phone)v2
-
-
-#### Setup app
-
-*Populate created lists(Colors,Vehicles, States on the site with data.
-
-*Navigate to PersonBolo List(Change or add to the Bolo Type field)
-
-*Navigate to Vehicle List(Change or add to the Bolo Type field)
-
-*Remove SharePoint connections from power apps, re-add new connect to new site.
-
-#### Setup 
-
-##### Missing Person Adaptive Card
-*Create the Teams channels that correspond with your BOLO Type
-
-*Open and Edit "Missing Person AC Posting", go to Switch(Last Step in the flow), Adjust Case and Case 2 to match your BOLO Type
-
-*Adjust "Post adaptive card in a chat or channel" steps and adjust the Team and Channel Name
-
-##### Vehicle Adaptive Card
-*Create the Teams channels that correspond with your BOLO Type
-
-*Open and Edit "Vehicle AC Posting", go to Switch(Last Step in the flow), Adjust Case and Case 2 to match your BOLO Type
-
-*Adjust "Post adaptive card in a chat or channel" steps and adjust the Team and Channel Name
+### Vehicle adaptive card
+- Create Teams channels that correspond to your BOLO type.
+- Open and edit `Vehicle AC Posting`. In the `Switch` step (last step in the flow), adjust `Case` and `Case 2` to match your BOLO type.
+- Update `Post adaptive card in a chat or channel` steps with the correct team and channel names.
