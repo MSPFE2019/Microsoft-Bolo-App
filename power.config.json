@@ -1,0 +1,14 @@
+{
+  "version": "1.0",
+  "appId": "5996daa1-1594-496b-9596-44536973e144",
+  "appDisplayName": "BOLO App",
+  "region": "gccmoderate",
+  "environmentId": "9f2c80d0-ff47-eb64-87ad-3c8e3250a75b",
+  "description": " ",
+  "buildPath": "dist",
+  "buildEntryPoint": "index.html",
+  "localAppUrl": "http://localhost:3000",
+  "logoPath": "Default",
+  "connectionReferences": {},
+  "databaseReferences": {}
+}
