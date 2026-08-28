@@ -137,6 +137,25 @@ export const EYE_COLOR_OPTIONS = [
   "Other/Unknown",
 ];
 
+export const PERSON_BOLO_TYPE_OPTIONS = [
+  "Missing Person",
+  "Wanted Person",
+  "Person of Interest",
+  "Person at Risk",
+];
+
+export const VEHICLE_BOLO_TYPE_OPTIONS = [
+  "Stolen Vehicle",
+  "Used in Crime",
+];
+
+export function boloTypeOptions(kind: RecordKind, current?: string): string[] {
+  const options = kind === "person" ? PERSON_BOLO_TYPE_OPTIONS : VEHICLE_BOLO_TYPE_OPTIONS;
+  // Keep a legacy or unrecognized value selectable so editing never silently
+  // rewrites it to the first option.
+  return current && !options.includes(current) ? [...options, current] : options;
+}
+
 export const VEHICLE_COLOR_OPTIONS = [
   "Black",
   "White",

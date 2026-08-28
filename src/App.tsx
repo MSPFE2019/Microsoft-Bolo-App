@@ -34,6 +34,7 @@ import {
   HEIGHT_OPTIONS,
   RACE_OPTIONS,
   STATE_OPTIONS,
+  boloTypeOptions,
   STATUS_OPTIONS,
   DEFAULT_STATUSES,
   VEHICLE_COLOR_OPTIONS,
@@ -148,7 +149,7 @@ function App() {
     setForm((current) => ({
       ...current,
       kind: nextKind,
-      boloType: nextKind === "person" ? "Missing Person" : "Stolen Vehicle",
+      boloType: boloTypeOptions(nextKind)[0],
     }));
   }
 
@@ -177,7 +178,7 @@ function App() {
     setEditingId(null);
     setFormStatus("Open");
     setSaveError(null);
-    setForm({ ...emptyForm, kind, boloType: kind === "person" ? "Missing Person" : "Stolen Vehicle" });
+    setForm({ ...emptyForm, kind, boloType: boloTypeOptions(kind)[0] });
     setShowForm(true);
   }
 
@@ -385,7 +386,7 @@ function App() {
             {editingId && (
               <label>Status<select value={formStatus} onChange={(event) => setFormStatus(event.target.value as BoloStatus)}>{STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}</select></label>
             )}
-            <label>BOLO type<select value={form.boloType} onChange={(event) => setForm({ ...form, boloType: event.target.value })}><option>{form.kind === "person" ? "Missing Person" : "Stolen Vehicle"}</option><option>{form.kind === "person" ? "Wanted Person" : "Used in Crime"}</option></select></label>
+            <label>BOLO type<select value={form.boloType} onChange={(event) => setForm({ ...form, boloType: event.target.value })}>{boloTypeOptions(form.kind, form.boloType).map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
 
             {form.kind === "person" ? <>
               <label>First name<input required value={form.firstName} onChange={(event) => setForm({ ...form, firstName: event.target.value })} placeholder="First name" /></label>
