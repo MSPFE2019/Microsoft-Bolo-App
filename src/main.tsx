@@ -12,7 +12,15 @@ try {
   console.warn("Power Apps SDK not initialized (running standalone).", error);
 }
 
+let mounted = false;
+
 function renderFallback(message: string) {
+  // Once React owns the DOM it reports its own errors inline. Replacing the
+  // tree here would blow the whole app away over a single failed request.
+  if (mounted) {
+    console.error("BOLO App error:", message);
+    return;
+  }
   const root = document.getElementById("root");
   if (root) {
     root.innerHTML =
@@ -32,6 +40,7 @@ try {
       <App />
     </StrictMode>,
   );
+  mounted = true;
 } catch (error) {
   renderFallback(String(error));
 }

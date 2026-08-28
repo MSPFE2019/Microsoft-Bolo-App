@@ -108,6 +108,38 @@ export async function getHostUser(fallback: AppUser): Promise<AppUser> {
   }
 }
 
+/**
+ * Dataverse create/update calls return a bare id (or nothing) rather than the
+ * full row. Surface the real server error, then read the record back so the UI
+ * always gets a complete record.
+ */
+async function resolveWritten(
+  result: { success?: boolean; data?: unknown; error?: unknown },
+  kind: RecordKind,
+  fallbackId?: string,
+): Promise<BoloRecord> {
+  if (result.success === false || result.error) {
+    const error = result.error as { message?: string } | undefined;
+    throw new Error(error?.message ?? `Dataverse rejected the ${kind} BOLO write.`);
+  }
+
+  const row = (result.data ?? {}) as Record<string, unknown>;
+  const idField = kind === "person" ? "new_personboloid" : "new_vehicleboloid";
+  const id = (row[idField] as string | undefined) ?? fallbackId;
+
+  if (row[idField] && row.new_name !== undefined) {
+    return toRecord(row as never, kind);
+  }
+  if (!id) throw new Error(`Dataverse did not return an id for the ${kind} BOLO.`);
+
+  const fetched =
+    kind === "person"
+      ? await New_personbolosService.get(id)
+      : await New_vehiclebolosService.get(id);
+  if (!fetched.data) throw new Error(`Could not read back the saved ${kind} BOLO.`);
+  return toRecord(fetched.data as never, kind);
+}
+
 export function createDataverseBoloService(): BoloService {
   return {
     async list() {
@@ -125,23 +157,19 @@ export function createDataverseBoloService(): BoloService {
       const owner = { new_ownername: user.name };
       if (input.kind === "person") {
         const result = await New_personbolosService.create({ ...personColumns(input), ...owner } as never);
-        if (!result.data) throw new Error("Dataverse did not return the created person BOLO.");
-        return toRecord(result.data, "person");
+        return resolveWritten(result, "person");
       }
       const result = await New_vehiclebolosService.create({ ...vehicleColumns(input), ...owner } as never);
-      if (!result.data) throw new Error("Dataverse did not return the created vehicle BOLO.");
-      return toRecord(result.data, "vehicle");
+      return resolveWritten(result, "vehicle");
     },
 
     async update(id: string, changes: NewBoloRecord) {
       if (changes.kind === "person") {
         const result = await New_personbolosService.update(id, personColumns(changes) as never);
-        if (!result.data) throw new Error("Dataverse did not return the updated person BOLO.");
-        return toRecord(result.data, "person");
+        return resolveWritten(result, "person", id);
       }
       const result = await New_vehiclebolosService.update(id, vehicleColumns(changes) as never);
-      if (!result.data) throw new Error("Dataverse did not return the updated vehicle BOLO.");
-      return toRecord(result.data, "vehicle");
+      return resolveWritten(result, "vehicle", id);
     },
   };
 }

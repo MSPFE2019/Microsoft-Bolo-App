@@ -73,6 +73,7 @@ function App() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<NewBoloRecord>(emptyForm);
   const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState(fallbackUser);
   const [loadError, setLoadError] = useState("");
   const isMobile = useIsMobile();
@@ -165,6 +166,7 @@ function App() {
   async function submit(event: FormEvent) {
     event.preventDefault();
     setIsSaving(true);
+    setSaveError(null);
     try {
       if (editingId) {
         const updated = await boloService.update(editingId, form);
@@ -178,6 +180,8 @@ function App() {
       setShowForm(false);
       setEditingId(null);
       setForm(emptyForm);
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : String(error));
     } finally {
       setIsSaving(false);
     }
@@ -370,6 +374,7 @@ function App() {
             <label className="full">Case details<textarea required rows={4} value={form.details} onChange={(event) => setForm({ ...form, details: event.target.value })} placeholder="Add details your team should know." /></label>
           </div>
           <div className="modal-actions">
+            {saveError && <span className="save-error">{saveError}</span>}
             <button type="button" className="secondary-button" onClick={() => setShowForm(false)}>Cancel</button>
             <button className="primary-button" disabled={isSaving}>{isSaving ? "Saving..." : editingId ? "Save changes" : "Create BOLO"}</button>
           </div>
