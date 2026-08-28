@@ -69,7 +69,12 @@ export function lastKnownLocation(record: BoloRecord): string {
 }
 
 export function canEdit(user: AppUser, record: BoloRecord): boolean {
-  return user.role === "admin" || user.id === record.ownerId;
+  if (user.role === "admin") return true;
+  // The host context gives an Entra object id, while Dataverse stamps ownerid
+  // with the systemuser id, so those never match. Fall back to the owner name
+  // we record on the row. Dataverse enforces the real rule server-side.
+  if (record.ownerId && user.id && record.ownerId === user.id) return true;
+  return Boolean(record.ownerName) && record.ownerName === user.name;
 }
 
 export const AGE_OPTIONS = [

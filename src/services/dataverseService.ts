@@ -108,6 +108,20 @@ export async function getHostUser(fallback: AppUser): Promise<AppUser> {
   }
 }
 
+const PERSON_SELECT = [
+  "new_personboloid", "new_name", "new_bolotype", "new_bolostatus", "new_casenumber",
+  "new_casedetails", "new_ownername", "new_photourl", "new_city", "new_state",
+  "new_firstname", "new_middlename", "new_lastname", "new_aka", "new_age",
+  "new_race", "new_height", "new_haircolor", "new_eyecolor", "createdon",
+];
+
+const VEHICLE_SELECT = [
+  "new_vehicleboloid", "new_name", "new_bolotype", "new_bolostatus", "new_casenumber",
+  "new_casedetails", "new_ownername", "new_photourl", "new_city", "new_state",
+  "new_vehicleyear", "new_vehiclemake", "new_vehiclemodel", "new_vehiclecolor",
+  "new_platenumber", "new_platestate", "createdon",
+];
+
 /**
  * Dataverse create/update calls return a bare id (or nothing) rather than the
  * full row. Surface the real server error, then read the record back so the UI
@@ -134,8 +148,8 @@ async function resolveWritten(
 
   const fetched =
     kind === "person"
-      ? await New_personbolosService.get(id)
-      : await New_vehiclebolosService.get(id);
+      ? await New_personbolosService.get(id, { select: PERSON_SELECT })
+      : await New_vehiclebolosService.get(id, { select: VEHICLE_SELECT });
   if (!fetched.data) throw new Error(`Could not read back the saved ${kind} BOLO.`);
   return toRecord(fetched.data as never, kind);
 }
@@ -144,8 +158,8 @@ export function createDataverseBoloService(): BoloService {
   return {
     async list() {
       const [people, vehicles] = await Promise.all([
-        New_personbolosService.getAll(),
-        New_vehiclebolosService.getAll(),
+        New_personbolosService.getAll({ select: PERSON_SELECT }),
+        New_vehiclebolosService.getAll({ select: VEHICLE_SELECT }),
       ]);
       return [
         ...((people.data ?? []) as PersonRow[]).map((row) => toRecord(row, "person")),
