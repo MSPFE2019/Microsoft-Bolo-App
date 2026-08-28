@@ -162,4 +162,11 @@ export class MockBoloService implements BoloService {
   }
 }
 
+/**
+ * True when running inside the Power Apps player (Dataverse is reachable).
+ * Locally, `npm run dev` keeps using mock data so the UI stays workable
+ * without an environment connection.
+ */
+export const isHosted = typeof window !== "undefined" && window.location.hostname !== "localhost";
+
 export const boloService: BoloService = new MockBoloService();

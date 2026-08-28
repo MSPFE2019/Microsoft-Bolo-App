@@ -10,5 +10,19 @@
   "localAppUrl": "http://localhost:3000",
   "logoPath": "Default",
   "connectionReferences": {},
-  "databaseReferences": {}
+  "databaseReferences": {
+    "default.cds": {
+      "dataSources": {
+        "personbolos": {
+          "entitySetName": "new_personbolos",
+          "logicalName": "new_personbolo"
+        },
+        "vehiclebolos": {
+          "entitySetName": "new_vehiclebolos",
+          "logicalName": "new_vehiclebolo"
+        }
+      },
+      "environmentVariableName": ""
+    }
+  }
 }

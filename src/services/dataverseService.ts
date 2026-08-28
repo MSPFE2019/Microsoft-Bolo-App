@@ -1,89 +1,73 @@
+import { getContext } from "@microsoft/power-apps/app";
+import { New_personbolosService } from "../generated/services/New_personbolosService";
+import { New_vehiclebolosService } from "../generated/services/New_vehiclebolosService";
+import type { New_personbolos } from "../generated/models/New_personbolosModel";
+import type { New_vehiclebolos } from "../generated/models/New_vehiclebolosModel";
+import { displayName } from "../types";
 import type { AppUser, BoloRecord, NewBoloRecord, RecordKind } from "../types";
 import type { BoloService } from "./boloService";
 
-/**
- * Shape returned by the generated Power Apps Dataverse services.
- * Pass the generated services to createDataverseBoloService after
- * `pac code add-data-source` creates the environment-specific files.
- */
-export interface DataverseBoloRow {
-  boloid?: string;
-  new_boloid?: string;
-  new_bolotype?: string;
-  new_bolostatus?: string;
-  new_casenumber?: string;
-  new_details?: string;
-  new_firstname?: string;
-  new_middlename?: string;
-  new_lastname?: string;
-  new_aka?: string;
-  new_age?: string;
-  new_race?: string;
-  new_height?: string;
-  new_haircolor?: string;
-  new_eyecolor?: string;
-  new_city?: string;
-  new_state?: string;
-  new_vehicleyear?: string;
-  new_vehiclemake?: string;
-  new_vehiclemodel?: string;
-  new_vehiclecolor?: string;
-  new_platenumber?: string;
-  new_platestate?: string;
-  new_photourl?: string;
-  _ownerid_value?: string;
-  new_ownername?: string;
-  createdon?: string;
+type PersonRow = Partial<New_personbolos>;
+type VehicleRow = Partial<New_vehiclebolos>;
+type AnyRow = PersonRow & VehicleRow;
+
+function splitRace(value?: string): string[] {
+  return value ? value.split(";").map((entry) => entry.trim()).filter(Boolean) : [];
 }
 
-export interface GeneratedDataverseService {
-  getAll(options?: {
-    select?: string[];
-    filter?: string;
-    orderBy?: string[];
-    top?: number;
-  }): Promise<{ data?: DataverseBoloRow[] }>;
-  create(input: Record<string, string>): Promise<{ data?: DataverseBoloRow }>;
-  update(id: string, changes: Record<string, string>): Promise<{ data?: DataverseBoloRow }>;
-}
+function toRecord(row: AnyRow, kind: RecordKind): BoloRecord {
+  const id =
+    kind === "person"
+      ? (row as PersonRow).new_personboloid
+      : (row as VehicleRow).new_vehicleboloid;
 
-function toRecord(row: DataverseBoloRow, kind: RecordKind): BoloRecord {
   return {
-    id: row.boloid ?? row.new_boloid ?? crypto.randomUUID(),
+    id: id ?? crypto.randomUUID(),
     kind,
-    boloType: row.new_bolotype ?? "Uncategorized",
+    boloType: row.new_bolotype ?? (kind === "person" ? "Missing Person" : "Stolen Vehicle"),
     status: (row.new_bolostatus as BoloRecord["status"]) ?? "Open",
     caseNumber: row.new_casenumber ?? "",
-    details: row.new_details ?? "",
+    details: row.new_casedetails ?? "",
     createdAt: row.createdon ?? new Date().toISOString(),
-    ownerId: row._ownerid_value ?? "",
-    ownerName: row.new_ownername ?? "Unknown",
-    firstName: row.new_firstname ?? "",
-    middleName: row.new_middlename ?? "",
-    lastName: row.new_lastname ?? "",
-    aka: row.new_aka ?? "",
-    age: row.new_age ?? "",
-    race: row.new_race ? row.new_race.split(";").map((value) => value.trim()).filter(Boolean) : [],
-    height: row.new_height ?? "",
-    hairColor: row.new_haircolor ?? "",
-    eyeColor: row.new_eyecolor ?? "",
+    ownerId: row._owninguser_value ?? row.ownerid ?? "",
+    ownerName: row.new_ownername ?? row.owneridname ?? "Unknown",
+    firstName: (row as PersonRow).new_firstname ?? "",
+    middleName: (row as PersonRow).new_middlename ?? "",
+    lastName: (row as PersonRow).new_lastname ?? "",
+    aka: (row as PersonRow).new_aka ?? "",
+    age: (row as PersonRow).new_age ?? "",
+    race: splitRace((row as PersonRow).new_race),
+    height: (row as PersonRow).new_height ?? "",
+    hairColor: (row as PersonRow).new_haircolor ?? "",
+    eyeColor: (row as PersonRow).new_eyecolor ?? "",
     city: row.new_city ?? "",
     state: row.new_state ?? "",
-    vehicleYear: row.new_vehicleyear ?? "",
-    vehicleMake: row.new_vehiclemake ?? "",
-    vehicleModel: row.new_vehiclemodel ?? "",
-    vehicleColor: row.new_vehiclecolor ?? "",
-    plateNumber: row.new_platenumber ?? "",
-    plateState: row.new_platestate ?? "",
+    vehicleYear: (row as VehicleRow).new_vehicleyear ?? "",
+    vehicleMake: (row as VehicleRow).new_vehiclemake ?? "",
+    vehicleModel: (row as VehicleRow).new_vehiclemodel ?? "",
+    vehicleColor: (row as VehicleRow).new_vehiclecolor ?? "",
+    plateNumber: (row as VehicleRow).new_platenumber ?? "",
+    plateState: (row as VehicleRow).new_platestate ?? "",
     photoUrl: row.new_photourl ?? "",
   };
 }
 
-function toColumns(input: NewBoloRecord): Record<string, string> {
+function sharedColumns(input: NewBoloRecord) {
   return {
+    new_name: displayName({ ...input, id: "", status: "Open", createdAt: "", ownerId: "", ownerName: "" }),
     new_bolotype: input.boloType,
+    new_bolostatus: "Open",
     new_casenumber: input.caseNumber,
-    new_details: input.details,
+    new_casedetails: input.details,
+    new_city: input.city,
+    new_state: input.state,
+    new_photourl: input.photoUrl,
+  };
+}
+
+function personColumns(input: NewBoloRecord) {
+  return {
+    ...sharedColumns(input),
     new_firstname: input.firstName,
     new_middlename: input.middleName,
     new_lastname: input.lastName,
@@ -93,49 +77,71 @@ function toColumns(input: NewBoloRecord): Record<string, string> {
     new_height: input.height,
     new_haircolor: input.hairColor,
     new_eyecolor: input.eyeColor,
-    new_city: input.city,
-    new_state: input.state,
+  };
+}
+
+function vehicleColumns(input: NewBoloRecord) {
+  return {
+    ...sharedColumns(input),
     new_vehicleyear: input.vehicleYear,
     new_vehiclemake: input.vehicleMake,
     new_vehiclemodel: input.vehicleModel,
     new_vehiclecolor: input.vehicleColor,
     new_platenumber: input.plateNumber,
     new_platestate: input.plateState,
-    new_photourl: input.photoUrl,
   };
 }
 
-export function createDataverseBoloService(
-  personService: GeneratedDataverseService,
-  vehicleService: GeneratedDataverseService,
-): BoloService {
-  const serviceFor = (kind: RecordKind) => (kind === "person" ? personService : vehicleService);
+/** Resolves the signed-in user from the Power Apps host context. */
+export async function getHostUser(fallback: AppUser): Promise<AppUser> {
+  try {
+    const context = await getContext();
+    const user = context?.user;
+    if (!user?.objectId) return fallback;
+    return {
+      id: user.objectId,
+      name: user.fullName ?? user.userPrincipalName ?? fallback.name,
+      role: fallback.role,
+    };
+  } catch {
+    return fallback;
+  }
+}
 
+export function createDataverseBoloService(): BoloService {
   return {
     async list() {
       const [people, vehicles] = await Promise.all([
-        personService.getAll({ top: 100, orderBy: ["createdon desc"] }),
-        vehicleService.getAll({ top: 100, orderBy: ["createdon desc"] }),
+        New_personbolosService.getAll(),
+        New_vehiclebolosService.getAll(),
       ]);
       return [
-        ...(people.data ?? []).map((row) => toRecord(row, "person")),
-        ...(vehicles.data ?? []).map((row) => toRecord(row, "vehicle")),
+        ...((people.data ?? []) as PersonRow[]).map((row) => toRecord(row, "person")),
+        ...((vehicles.data ?? []) as VehicleRow[]).map((row) => toRecord(row, "vehicle")),
       ].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     },
 
     async create(input: NewBoloRecord, user: AppUser) {
-      const result = await serviceFor(input.kind).create({
-        ...toColumns(input),
-        new_ownername: user.name,
-      });
-      if (!result.data) throw new Error("Dataverse did not return the created BOLO record.");
-      return toRecord(result.data, input.kind);
+      const owner = { new_ownername: user.name };
+      if (input.kind === "person") {
+        const result = await New_personbolosService.create({ ...personColumns(input), ...owner } as never);
+        if (!result.data) throw new Error("Dataverse did not return the created person BOLO.");
+        return toRecord(result.data, "person");
+      }
+      const result = await New_vehiclebolosService.create({ ...vehicleColumns(input), ...owner } as never);
+      if (!result.data) throw new Error("Dataverse did not return the created vehicle BOLO.");
+      return toRecord(result.data, "vehicle");
     },
 
     async update(id: string, changes: NewBoloRecord) {
-      const result = await serviceFor(changes.kind).update(id, toColumns(changes));
-      if (!result.data) throw new Error("Dataverse did not return the updated BOLO record.");
-      return toRecord(result.data, changes.kind);
+      if (changes.kind === "person") {
+        const result = await New_personbolosService.update(id, personColumns(changes) as never);
+        if (!result.data) throw new Error("Dataverse did not return the updated person BOLO.");
+        return toRecord(result.data, "person");
+      }
+      const result = await New_vehiclebolosService.update(id, vehicleColumns(changes) as never);
+      if (!result.data) throw new Error("Dataverse did not return the updated vehicle BOLO.");
+      return toRecord(result.data, "vehicle");
     },
   };
 }

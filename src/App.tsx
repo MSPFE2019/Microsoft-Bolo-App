@@ -16,7 +16,7 @@ function useIsMobile() {
   return isMobile;
 }
 
-import { boloService, currentUser } from "./services/boloService";
+import { activeService as boloService, fallbackUser, resolveActiveUser } from "./services/activeService";
 import {
   AGE_OPTIONS,
   EYE_COLOR_OPTIONS,
@@ -73,11 +73,20 @@ function App() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<NewBoloRecord>(emptyForm);
   const [isSaving, setIsSaving] = useState(false);
+  const [currentUser, setCurrentUser] = useState(fallbackUser);
+  const [loadError, setLoadError] = useState("");
   const isMobile = useIsMobile();
   const canManage = !isMobile;
 
   useEffect(() => {
-    void boloService.list().then(setRecords);
+    void resolveActiveUser().then(setCurrentUser);
+  }, []);
+
+  useEffect(() => {
+    void boloService
+      .list()
+      .then(setRecords)
+      .catch((error: unknown) => setLoadError(String(error)));
   }, []);
 
   useEffect(() => {
@@ -193,6 +202,12 @@ function App() {
           </div>
           {canManage && <button className="primary-button" onClick={startCreate}>＋ New BOLO</button>}
         </section>
+
+        {loadError && (
+          <div className="load-error" role="alert">
+            Could not load BOLO records: {loadError}
+          </div>
+        )}
 
         <section className="stats" aria-label="BOLO summary">
           <div><strong>{openCount}</strong><span>Open alerts</span></div>
