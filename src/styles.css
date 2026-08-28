@@ -84,3 +84,28 @@
   .clock time { font-size: 15px; }
   .clock span { font-size: 10px; }
 }
+
+/* Faint shield watermark behind the page content. */
+.app-shell {
+  position: relative;
+  isolation: isolate;
+}
+.app-shell::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: url("./assets/bolo-shield.png");
+  background-repeat: no-repeat;
+  background-position: center 58%;
+  background-size: min(620px, 68vw) auto;
+  opacity: .06;
+}
+
+@media(max-width:820px) {
+  .app-shell::before {
+    background-size: min(380px, 82vw) auto;
+    opacity: .05;
+  }
+}
