@@ -33,6 +33,7 @@ import {
   vehicleSummary,
 } from "./types";
 import type { BoloRecord, NewBoloRecord, RecordKind } from "./types";
+import { fileToStoredPhoto } from "./photo";
 
 const emptyForm: NewBoloRecord = {
   kind: "person",
@@ -144,11 +145,16 @@ function App() {
     }));
   }
 
-  function selectPhoto(file: File | undefined) {
+  async function selectPhoto(file: File | undefined) {
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setForm((current) => ({ ...current, photoUrl: String(reader.result) }));
-    reader.readAsDataURL(file);
+    setSaveError(null);
+    try {
+      setForm((current) => ({ ...current, photoUrl: "" }));
+      const photoUrl = await fileToStoredPhoto(file);
+      setForm((current) => ({ ...current, photoUrl }));
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : String(error));
+    }
   }
 
   function startCreate() {

@@ -96,7 +96,7 @@ $shared = @(
   @{ n = "CaseDetails"; d = "Case details"; len = 8000 },
   @{ n = "City";        d = "City";         len = 100 },
   @{ n = "State";       d = "State";        len = 10 },
-  @{ n = "PhotoUrl";    d = "Photo";        len = 8000 },
+  @{ n = "PhotoUrl";    d = "Photo";        len = 1048576 },
   @{ n = "OwnerName";   d = "Submitted by"; len = 200 }
 )
 
