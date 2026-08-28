@@ -16,6 +16,16 @@ function useIsMobile() {
   return isMobile;
 }
 
+/** Ticking wall clock for the dispatch header. */
+function useNow() {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+  return now;
+}
+
 import { activeService as boloService, fallbackUser, resolveActiveUser } from "./services/activeService";
 import {
   AGE_OPTIONS,
@@ -82,6 +92,7 @@ function App() {
   const [currentUser, setCurrentUser] = useState(fallbackUser);
   const [loadError, setLoadError] = useState("");
   const isMobile = useIsMobile();
+  const now = useNow();
   const canManage = !isMobile;
 
   useEffect(() => {
@@ -214,7 +225,15 @@ function App() {
     <div className="app-shell">
       <header className="topbar">
         <div className="brand"><span className="brand-mark">B</span><span>BOLO App</span></div>
-        <span className="environment">{currentUser.name} · {currentUser.role === "admin" ? "Administrator" : "Officer"} · {canManage ? "Dispatch console" : "Field lookup"}</span>
+        <div className="topbar-right">
+          <span className="environment">{currentUser.name} · {currentUser.role === "admin" ? "Administrator" : "Officer"} · {canManage ? "Dispatch console" : "Field lookup"}</span>
+          <div className="clock">
+            <time dateTime={now.toISOString()}>
+              {now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+            </time>
+            <span>{now.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}</span>
+          </div>
+        </div>
       </header>
       <main className="content">
         <section className="hero">

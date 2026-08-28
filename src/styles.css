@@ -52,3 +52,35 @@
   .status-filter { padding: 12px 15px; }
   .status-chip { padding: 8px 14px; font-size: 13px; }
 }
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-width: 0;
+}
+.clock {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  line-height: 1.1;
+  padding-left: 18px;
+  border-left: 1px solid #2c4761;
+}
+.clock time {
+  font-size: 17px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .5px;
+}
+.clock span {
+  font-size: 11px;
+  color: #b9c8d8;
+  white-space: nowrap;
+}
+
+@media(max-width:820px) {
+  .clock { padding-left: 0; border-left: 0; }
+  .clock time { font-size: 15px; }
+  .clock span { font-size: 10px; }
+}
