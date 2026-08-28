@@ -24,6 +24,8 @@ import {
   HEIGHT_OPTIONS,
   RACE_OPTIONS,
   STATE_OPTIONS,
+  STATUS_OPTIONS,
+  DEFAULT_STATUSES,
   VEHICLE_COLOR_OPTIONS,
   VEHICLE_MAKE_OPTIONS,
   VEHICLE_YEAR_OPTIONS,
@@ -32,7 +34,7 @@ import {
   lastKnownLocation,
   vehicleSummary,
 } from "./types";
-import type { BoloRecord, NewBoloRecord, RecordKind } from "./types";
+import type { BoloRecord, BoloStatus, NewBoloRecord, RecordKind } from "./types";
 import { fileToStoredPhoto } from "./photo";
 
 const emptyForm: NewBoloRecord = {
@@ -74,6 +76,8 @@ function App() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<NewBoloRecord>(emptyForm);
   const [isSaving, setIsSaving] = useState(false);
+  const [formStatus, setFormStatus] = useState<BoloStatus>("Open");
+  const [statusFilter, setStatusFilter] = useState<BoloStatus[]>(DEFAULT_STATUSES);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState(fallbackUser);
   const [loadError, setLoadError] = useState("");
@@ -102,6 +106,7 @@ function App() {
     const normalizedQuery = query.trim().toLowerCase();
     return records.filter((record) => {
       if (record.kind !== kind) return false;
+      if (!statusFilter.includes(record.status)) return false;
       if (!normalizedQuery) return true;
       return [
         displayName(record),
@@ -122,7 +127,7 @@ function App() {
         .toLowerCase()
         .includes(normalizedQuery);
     });
-  }, [kind, query, records]);
+  }, [kind, query, records, statusFilter]);
 
   const selectedRecord = records.find((record) => record.id === selectedId) ?? null;
   const openCount = records.filter((record) => record.status === "Open").length;
@@ -159,14 +164,26 @@ function App() {
 
   function startCreate() {
     setEditingId(null);
+    setFormStatus("Open");
+    setSaveError(null);
     setForm({ ...emptyForm, kind, boloType: kind === "person" ? "Missing Person" : "Stolen Vehicle" });
     setShowForm(true);
   }
 
   function startEdit(record: BoloRecord) {
     setEditingId(record.id);
+    setFormStatus(record.status);
+    setSaveError(null);
     setForm(toForm(record));
     setShowForm(true);
+  }
+
+  function toggleStatusFilter(status: BoloStatus) {
+    setStatusFilter((current) =>
+      current.includes(status)
+        ? current.filter((value) => value !== status)
+        : [...current, status],
+    );
   }
 
   async function submit(event: FormEvent) {
@@ -175,7 +192,7 @@ function App() {
     setSaveError(null);
     try {
       if (editingId) {
-        const updated = await boloService.update(editingId, form);
+        const updated = await boloService.update(editingId, form, formStatus);
         setRecords((current) => current.map((record) => (record.id === editingId ? updated : record)));
       } else {
         const created = await boloService.create(form, currentUser);
@@ -233,6 +250,20 @@ function App() {
             </div>
             <label className="search"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${kind} BOLOs`} /></label>
           </div>
+          <div className="status-filter" role="group" aria-label="Filter by status">
+            <span className="status-filter-label">Status</span>
+            {STATUS_OPTIONS.map((status) => (
+              <button
+                key={status}
+                type="button"
+                className={statusFilter.includes(status) ? "status-chip active" : "status-chip"}
+                aria-pressed={statusFilter.includes(status)}
+                onClick={() => toggleStatusFilter(status)}
+              >
+                {status}
+              </button>
+            ))}
+          </div>
           <div className="record-list">
             {visibleRecords.map((record) => (
               <article className="record-card" key={record.id} onClick={() => setSelectedId(record.id)} role="button" tabIndex={0}
@@ -253,7 +284,7 @@ function App() {
                 <time>{new Date(record.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</time>
               </article>
             ))}
-            {visibleRecords.length === 0 && <div className="empty-state"><strong>No matching BOLOs</strong><span>{canManage ? "Adjust your search or issue a new alert." : "Adjust your search terms and try again."}</span></div>}
+            {visibleRecords.length === 0 && <div className="empty-state"><strong>No matching BOLOs</strong><span>{statusFilter.length === 0 ? "Select at least one status to see records." : canManage ? "Adjust your search or status filter, or issue a new alert." : "Adjust your search or status filter and try again."}</span></div>}
           </div>
         </section>
       </main>
@@ -332,6 +363,9 @@ function App() {
           </div>
           <div className="form-grid">
             <label>Record type<select value={form.kind} disabled={Boolean(editingId)} onChange={(event) => changeKind(event.target.value as RecordKind)}><option value="person">Person</option><option value="vehicle">Vehicle</option></select></label>
+            {editingId && (
+              <label>Status<select value={formStatus} onChange={(event) => setFormStatus(event.target.value as BoloStatus)}>{STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}</select></label>
+            )}
             <label>BOLO type<select value={form.boloType} onChange={(event) => setForm({ ...form, boloType: event.target.value })}><option>{form.kind === "person" ? "Missing Person" : "Stolen Vehicle"}</option><option>{form.kind === "person" ? "Wanted Person" : "Used in Crime"}</option></select></label>
 
             {form.kind === "person" ? <>

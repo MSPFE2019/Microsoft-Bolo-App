@@ -4,7 +4,7 @@ import { New_vehiclebolosService } from "../generated/services/New_vehiclebolosS
 import type { New_personbolos } from "../generated/models/New_personbolosModel";
 import type { New_vehiclebolos } from "../generated/models/New_vehiclebolosModel";
 import { displayName } from "../types";
-import type { AppUser, BoloRecord, NewBoloRecord, RecordKind } from "../types";
+import type { AppUser, BoloRecord, BoloStatus, NewBoloRecord, RecordKind } from "../types";
 import type { BoloService } from "./boloService";
 
 type PersonRow = Partial<New_personbolos>;
@@ -177,12 +177,18 @@ export function createDataverseBoloService(): BoloService {
       return resolveWritten(result, "vehicle");
     },
 
-    async update(id: string, changes: NewBoloRecord) {
+    async update(id: string, changes: NewBoloRecord, status: BoloStatus) {
       if (changes.kind === "person") {
-        const result = await New_personbolosService.update(id, personColumns(changes) as never);
+        const result = await New_personbolosService.update(id, {
+          ...personColumns(changes),
+          new_bolostatus: status,
+        } as never);
         return resolveWritten(result, "person", id);
       }
-      const result = await New_vehiclebolosService.update(id, vehicleColumns(changes) as never);
+      const result = await New_vehiclebolosService.update(id, {
+        ...vehicleColumns(changes),
+        new_bolostatus: status,
+      } as never);
       return resolveWritten(result, "vehicle", id);
     },
   };

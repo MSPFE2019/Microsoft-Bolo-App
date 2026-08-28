@@ -1,5 +1,10 @@
 export type RecordKind = "person" | "vehicle";
-export type BoloStatus = "Open" | "Closed" | "Transferred";
+export type BoloStatus = "Open" | "Closed" | "Archived";
+
+export const STATUS_OPTIONS: BoloStatus[] = ["Open", "Closed", "Archived"];
+
+/** Statuses shown before the user explicitly filters for something else. */
+export const DEFAULT_STATUSES: BoloStatus[] = ["Open"];
 export type UserRole = "officer" | "admin";
 
 export interface AppUser {

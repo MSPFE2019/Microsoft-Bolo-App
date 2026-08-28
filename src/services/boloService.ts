@@ -1,4 +1,4 @@
-import type { AppUser, BoloRecord, NewBoloRecord } from "../types";
+import type { AppUser, BoloRecord, BoloStatus, NewBoloRecord } from "../types";
 
 // Represents the signed-in user. In a deployed code app this comes from the
 // Power Platform host context rather than a constant.
@@ -100,7 +100,7 @@ const seedRecords: BoloRecord[] = [
     id: "V-0864",
     kind: "vehicle",
     boloType: "Used in Crime",
-    status: "Transferred",
+    status: "Archived",
     caseNumber: "UC-2025-0864",
     details: "Share sightings with the assigned investigator.",
     createdAt: "2025-02-12T18:05:00.000Z",
@@ -130,7 +130,7 @@ const seedRecords: BoloRecord[] = [
 export interface BoloService {
   list(): Promise<BoloRecord[]>;
   create(input: NewBoloRecord, user: AppUser): Promise<BoloRecord>;
-  update(id: string, changes: NewBoloRecord): Promise<BoloRecord>;
+  update(id: string, changes: NewBoloRecord, status: BoloStatus): Promise<BoloRecord>;
 }
 
 export class MockBoloService implements BoloService {
@@ -153,10 +153,10 @@ export class MockBoloService implements BoloService {
     return record;
   }
 
-  async update(id: string, changes: NewBoloRecord): Promise<BoloRecord> {
+  async update(id: string, changes: NewBoloRecord, status: BoloStatus): Promise<BoloRecord> {
     const existing = this.records.find((record) => record.id === id);
     if (!existing) throw new Error(`BOLO record ${id} was not found.`);
-    const updated: BoloRecord = { ...existing, ...changes };
+    const updated: BoloRecord = { ...existing, ...changes, status };
     this.records = this.records.map((record) => (record.id === id ? updated : record));
     return updated;
   }
