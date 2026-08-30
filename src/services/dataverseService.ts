@@ -158,9 +158,17 @@ async function resolveRole(objectId: string, fallbackRole: AppUser["role"]): Pro
         `systemuserroles_association/any(u:u/azureactivedirectoryobjectid eq ${objectId})`,
       top: 1,
     } as never);
-    return (result.data ?? []).length > 0 ? "admin" : "officer";
-  } catch {
+    const isAdmin = (result.data ?? []).length > 0;
+    console.info(
+      `[BOLO] role check for ${objectId}: ${isAdmin ? "admin" : "officer"} ` +
+      `(matched ${(result.data ?? []).length} '${ADMIN_ROLE_NAME}' role rows)`,
+    );
+    return isAdmin ? "admin" : "officer";
+  } catch (error) {
     // Role lookup is best-effort; fall back rather than locking the user out.
+    // Surfaced so a missing prvReadRole privilege is diagnosable instead of
+    // silently demoting every admin to officer.
+    console.warn("[BOLO] role lookup failed; falling back to", fallbackRole, error);
     return fallbackRole;
   }
 }
