@@ -271,12 +271,14 @@ function App() {
                 : "Search active person and vehicle BOLOs on scene. Records are issued and updated from the dispatch console."}
             </p>
           </div>
-          {canManage && (
+          {(canManage || isAdmin) && (
             <div className="hero-actions">
               {isAdmin && (
                 <button className="secondary-button" onClick={() => setShowAdmin(true)}>⚙ Customize fields</button>
               )}
-              <button className="primary-button" onClick={startCreate}>＋ New BOLO</button>
+              {canManage && (
+                <button className="primary-button" onClick={startCreate}>＋ New BOLO</button>
+              )}
             </div>
           )}
         </section>
@@ -423,7 +425,7 @@ function App() {
           </div>
         </form>
       </div>}
-      {showAdmin && canManage && isAdmin && (
+      {showAdmin && isAdmin && (
         <FieldAdmin config={config} onSave={saveConfig} onClose={() => setShowAdmin(false)} />
       )}
     </div>
