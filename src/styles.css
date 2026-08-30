@@ -119,6 +119,16 @@
 .hero-actions { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
 
 .admin-modal { max-width: 760px; }
+/* These are direct children of .modal, which only pads .form-grid/.detail-grid,
+   so they need their own gutters to avoid sitting flush against the edges. */
+.admin-modal > .admin-intro,
+.admin-modal > .admin-add { padding-left:28px; padding-right:28px; }
+/* The list reserves a scrollbar gutter on the right, so trim its right pad to
+   keep the rows optically centred against the left gutter. */
+.admin-modal > .admin-list { padding-left:28px; padding-right:16px; }
+.admin-modal > .admin-warning { margin-left:28px; margin-right:28px; }
+.admin-modal > .admin-intro { padding-top:18px; }
+.admin-modal > .admin-add { padding-bottom:18px; }
 .admin-intro { margin:0 0 14px; color:#5b6b7f; font-size:14px; line-height:1.5; }
 .admin-warning {
   margin:0 0 14px; padding:10px 12px; border-radius:8px; font-size:13px; line-height:1.5;
@@ -126,7 +136,7 @@
 }
 .admin-warning code { background:#00000010; padding:1px 5px; border-radius:4px; }
 
-.admin-list { display:flex; flex-direction:column; gap:6px; max-height:44vh; overflow-y:auto; padding-right:4px; }
+.admin-list { display:flex; flex-direction:column; gap:6px; max-height:44vh; overflow-y:auto; scrollbar-gutter:stable; }
 .admin-row { border:1px solid #dfe6ef; border-radius:8px; background:#fff; }
 .admin-row.open { border-color:#9db6d4; box-shadow:0 1px 4px #00000010; }
 .admin-row-head { display:flex; align-items:center; gap:10px; padding:8px 10px; }
@@ -164,6 +174,7 @@
 .admin-add h3 { margin:0 0 8px; font-size:14px; color:#16232f; }
 .admin-add-row { display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; }
 .admin-add-row label { display:flex; flex-direction:column; gap:4px; font-size:13px; color:#3d4f63; flex:1; min-width:130px; }
+.admin-add-row .secondary-button { flex:none; }
 
 .pending-tag {
   background:#fff2cc; color:#7a5b00; border:1px solid #e8c86a;
@@ -172,4 +183,8 @@
 
 @media(max-width:820px) {
   .admin-row-body, .admin-add-row { grid-template-columns:1fr; }
+  .admin-modal > .admin-intro,
+  .admin-modal > .admin-add { padding-left:18px; padding-right:18px; }
+  .admin-modal > .admin-list { padding-left:18px; padding-right:6px; }
+  .admin-modal > .admin-warning { margin-left:18px; margin-right:18px; }
 }
