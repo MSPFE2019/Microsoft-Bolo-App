@@ -254,7 +254,7 @@ function App() {
           <span className="environment">{currentUser.name} · {currentUser.role === "admin" ? "Administrator" : "Officer"} · {canManage ? "Dispatch console" : "Field lookup"}</span>
           <div className="clock">
             <time dateTime={now.toISOString()}>
-              {now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+              {now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false })}
             </time>
             <span>{now.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}</span>
           </div>
