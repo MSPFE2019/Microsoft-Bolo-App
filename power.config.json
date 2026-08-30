@@ -20,6 +20,10 @@
         "vehiclebolos": {
           "entitySetName": "new_vehiclebolos",
           "logicalName": "new_vehiclebolo"
+        },
+        "boloconfigs": {
+          "entitySetName": "new_boloconfigs",
+          "logicalName": "new_boloconfig"
         }
       },
       "environmentVariableName": ""

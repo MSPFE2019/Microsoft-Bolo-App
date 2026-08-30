@@ -1,11 +1,13 @@
 import type { AppUser, BoloRecord, BoloStatus, NewBoloRecord } from "../types";
 
 // Represents the signed-in user. In a deployed code app this comes from the
-// Power Platform host context rather than a constant.
+// Power Platform host context rather than a constant. The local mock user is
+// an admin so `npm run dev` can exercise the field customization UI; the
+// hosted app resolves the real role from Dataverse.
 export const currentUser: AppUser = {
   id: "user-officer-1",
   name: "Officer M. Rich",
-  role: "officer",
+  role: "admin",
 };
 
 const seedRecords: BoloRecord[] = [
@@ -37,6 +39,7 @@ const seedRecords: BoloRecord[] = [
     plateNumber: "",
     plateState: "",
     photoUrl: "",
+    custom: {},
   },
   {
     id: "P-1043",
@@ -66,6 +69,7 @@ const seedRecords: BoloRecord[] = [
     plateNumber: "",
     plateState: "",
     photoUrl: "",
+    custom: {},
   },
   {
     id: "V-0871",
@@ -95,6 +99,7 @@ const seedRecords: BoloRecord[] = [
     plateNumber: "ABC1234",
     plateState: "WA",
     photoUrl: "",
+    custom: {},
   },
   {
     id: "V-0864",
@@ -124,6 +129,7 @@ const seedRecords: BoloRecord[] = [
     plateNumber: "XYZ9876",
     plateState: "WA",
     photoUrl: "",
+    custom: {},
   },
 ];
 

@@ -5,6 +5,13 @@
  */
 
 export const dataSourcesInfo = {
+  "new_boloconfigs": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "new_boloconfigid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
   "new_personbolos": {
     "tableId": "",
     "version": "",

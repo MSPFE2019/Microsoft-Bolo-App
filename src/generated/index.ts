@@ -5,9 +5,11 @@
 
 // Models
 export * as CommonModels from './models/CommonModels';
+export * as New_boloconfigsModel from './models/New_boloconfigsModel';
 export * as New_personbolosModel from './models/New_personbolosModel';
 export * as New_vehiclebolosModel from './models/New_vehiclebolosModel';
 
 // Services
+export * from './services/New_boloconfigsService';
 export * from './services/New_personbolosService';
 export * from './services/New_vehiclebolosService';

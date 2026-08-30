@@ -1,19 +1,47 @@
 import { getContext } from "@microsoft/power-apps/app";
+import { getClient } from "@microsoft/power-apps/data";
 import { New_personbolosService } from "../generated/services/New_personbolosService";
 import { New_vehiclebolosService } from "../generated/services/New_vehiclebolosService";
 import type { New_personbolos } from "../generated/models/New_personbolosModel";
 import type { New_vehiclebolos } from "../generated/models/New_vehiclebolosModel";
 import { displayName } from "../types";
 import type { AppUser, BoloRecord, BoloStatus, NewBoloRecord, RecordKind } from "../types";
+import type { FieldConfig } from "../fieldConfig";
+import { DEFAULT_CONFIG } from "../fieldConfig";
+import { customColumns as buildCustomColumns, customSelect, readCustom as readCustomValues } from "../customColumns";
 import type { BoloService } from "./boloService";
 
 type PersonRow = Partial<New_personbolos>;
 type VehicleRow = Partial<New_vehiclebolos>;
 type AnyRow = PersonRow & VehicleRow;
 
+/**
+ * Custom fields live in their own provisioned columns. The config is mutable at
+ * runtime, so the adapter reads it through a getter rather than capturing it.
+ */
+let readConfig: () => FieldConfig = () => DEFAULT_CONFIG;
+
+export function setDataverseFieldConfig(getter: () => FieldConfig) {
+  readConfig = getter;
+}
+
+function customColumns(input: NewBoloRecord): Record<string, string> {
+  return buildCustomColumns(readConfig(), input);
+}
+
+function readCustom(row: AnyRow, kind: RecordKind): Record<string, string | string[]> {
+  return readCustomValues(readConfig(), row as Record<string, unknown>, kind);
+}
+
 function splitRace(value?: string): string[] {
   return value ? value.split(";").map((entry) => entry.trim()).filter(Boolean) : [];
 }
+
+// The role table isn't an app data source, so it is declared here to query
+// role membership for the admin check.
+const roleDataSource = {
+  roles: { tableId: "", version: "", primaryKey: "roleid", dataSourceType: "Dataverse", apis: {} },
+};
 
 function toRecord(row: AnyRow, kind: RecordKind): BoloRecord {
   const id =
@@ -49,6 +77,7 @@ function toRecord(row: AnyRow, kind: RecordKind): BoloRecord {
     plateNumber: (row as VehicleRow).new_platenumber ?? "",
     plateState: (row as VehicleRow).new_platestate ?? "",
     photoUrl: row.new_photourl ?? "",
+    custom: readCustom(row, kind),
   };
 }
 
@@ -62,6 +91,7 @@ function sharedColumns(input: NewBoloRecord) {
     new_city: input.city,
     new_state: input.state,
     new_photourl: input.photoUrl,
+    ...customColumns(input),
   };
 }
 
@@ -101,26 +131,63 @@ export async function getHostUser(fallback: AppUser): Promise<AppUser> {
     return {
       id: user.objectId,
       name: user.fullName ?? user.userPrincipalName ?? fallback.name,
-      role: fallback.role,
+      role: await resolveRole(user.objectId, fallback.role),
     };
   } catch {
     return fallback;
   }
 }
 
-const PERSON_SELECT = [
+/**
+ * The host context carries no Dataverse role membership, so the app asks
+ * Dataverse whether the caller actually holds the BOLO Administrator role.
+ * This only gates UI affordances; Dataverse still enforces the real privileges
+ * server side, so being wrong here grants no additional access.
+ */
+const ADMIN_ROLE_NAME = "BOLO Administrator";
+
+async function resolveRole(objectId: string, fallbackRole: AppUser["role"]): Promise<AppUser["role"]> {
+  try {
+    const client = getClient(roleDataSource as never);
+    // Match the role to *this* user via the membership association. Querying
+    // `roles` alone would return every role in the org and make everyone admin.
+    const result = await client.retrieveMultipleRecordsAsync<{ roleid?: string }>("roles", {
+      select: ["roleid"],
+      filter:
+        `name eq '${ADMIN_ROLE_NAME}' and ` +
+        `systemuserroles_association/any(u:u/azureactivedirectoryobjectid eq ${objectId})`,
+      top: 1,
+    } as never);
+    return (result.data ?? []).length > 0 ? "admin" : "officer";
+  } catch {
+    // Role lookup is best-effort; fall back rather than locking the user out.
+    return fallbackRole;
+  }
+}
+
+const PERSON_SELECT_BASE = [
   "new_personboloid", "new_name", "new_bolotype", "new_bolostatus", "new_casenumber",
   "new_casedetails", "new_ownername", "new_photourl", "new_city", "new_state",
   "new_firstname", "new_middlename", "new_lastname", "new_aka", "new_age",
   "new_race", "new_height", "new_haircolor", "new_eyecolor", "createdon",
 ];
 
-const VEHICLE_SELECT = [
+const VEHICLE_SELECT_BASE = [
   "new_vehicleboloid", "new_name", "new_bolotype", "new_bolostatus", "new_casenumber",
   "new_casedetails", "new_ownername", "new_photourl", "new_city", "new_state",
   "new_vehicleyear", "new_vehiclemake", "new_vehiclemodel", "new_vehiclecolor",
   "new_platenumber", "new_platestate", "createdon",
 ];
+
+/**
+ * Built as a function because provisioned custom columns are only known at
+ * runtime. Selecting a column that doesn't exist fails the whole query, so
+ * pending fields are excluded by liveCustomFields.
+ */
+function selectFor(kind: RecordKind): string[] {
+  const base = kind === "person" ? PERSON_SELECT_BASE : VEHICLE_SELECT_BASE;
+  return [...base, ...customSelect(readConfig(), kind)];
+}
 
 /**
  * Dataverse create/update calls return a bare id (or nothing) rather than the
@@ -148,8 +215,8 @@ async function resolveWritten(
 
   const fetched =
     kind === "person"
-      ? await New_personbolosService.get(id, { select: PERSON_SELECT })
-      : await New_vehiclebolosService.get(id, { select: VEHICLE_SELECT });
+      ? await New_personbolosService.get(id, { select: selectFor("person") })
+      : await New_vehiclebolosService.get(id, { select: selectFor("vehicle") });
   if (!fetched.data) throw new Error(`Could not read back the saved ${kind} BOLO.`);
   return toRecord(fetched.data as never, kind);
 }
@@ -158,8 +225,8 @@ export function createDataverseBoloService(): BoloService {
   return {
     async list() {
       const [people, vehicles] = await Promise.all([
-        New_personbolosService.getAll({ select: PERSON_SELECT }),
-        New_vehiclebolosService.getAll({ select: VEHICLE_SELECT }),
+        New_personbolosService.getAll({ select: selectFor("person") }),
+        New_vehiclebolosService.getAll({ select: selectFor("vehicle") }),
       ]);
       return [
         ...((people.data ?? []) as PersonRow[]).map((row) => toRecord(row, "person")),

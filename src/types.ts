@@ -46,12 +46,30 @@ export interface BoloRecord {
 
   /** Data URL (local demo) or Dataverse image download URL. */
   photoUrl: string;
+
+  /**
+   * Values for admin-defined custom fields, keyed by FieldDef.key. Each key is
+   * backed by its own Dataverse column once provisioned; this bag only exists
+   * so the record shape doesn't have to be regenerated for every added field.
+   */
+  custom: Record<string, string | string[]>;
 }
 
 export type NewBoloRecord = Omit<
   BoloRecord,
   "id" | "status" | "createdAt" | "ownerId" | "ownerName"
 >;
+
+/** Reads a built-in or custom field off a record by its config key. */
+export function fieldValue(record: BoloRecord | NewBoloRecord, key: string): string | string[] {
+  if (key in record) return (record as unknown as Record<string, string | string[]>)[key] ?? "";
+  return record.custom?.[key] ?? "";
+}
+
+export function fieldValueText(record: BoloRecord | NewBoloRecord, key: string): string {
+  const value = fieldValue(record, key);
+  return Array.isArray(value) ? value.join(", ") : value;
+}
 
 export function displayName(record: BoloRecord): string {
   if (record.kind === "vehicle") {

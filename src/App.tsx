@@ -26,26 +26,23 @@ function useNow() {
   return now;
 }
 
-import { activeService as boloService, fallbackUser, resolveActiveUser } from "./services/activeService";
+import { activeService as boloService, activeConfigService, fallbackUser, resolveActiveUser } from "./services/activeService";
 import {
-  AGE_OPTIONS,
-  EYE_COLOR_OPTIONS,
-  HAIR_COLOR_OPTIONS,
-  HEIGHT_OPTIONS,
-  RACE_OPTIONS,
-  STATE_OPTIONS,
   boloTypeOptions,
   STATUS_OPTIONS,
   DEFAULT_STATUSES,
-  VEHICLE_COLOR_OPTIONS,
-  VEHICLE_MAKE_OPTIONS,
-  VEHICLE_YEAR_OPTIONS,
   canEdit,
   displayName,
+  fieldValueText,
   lastKnownLocation,
   vehicleSummary,
 } from "./types";
 import type { BoloRecord, BoloStatus, NewBoloRecord, RecordKind } from "./types";
+import { DEFAULT_CONFIG, fieldsFor, isPending } from "./fieldConfig";
+import type { FieldConfig } from "./fieldConfig";
+import { setDataverseFieldConfig } from "./services/dataverseService";
+import { FieldInput } from "./FieldInput";
+import { FieldAdmin } from "./FieldAdmin";
 import { fileToStoredPhoto } from "./photo";
 
 const emptyForm: NewBoloRecord = {
@@ -71,6 +68,7 @@ const emptyForm: NewBoloRecord = {
   plateNumber: "",
   plateState: "",
   photoUrl: "",
+  custom: {},
 };
 
 function toForm(record: BoloRecord): NewBoloRecord {
@@ -92,13 +90,33 @@ function App() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState(fallbackUser);
   const [loadError, setLoadError] = useState("");
+  const [config, setConfig] = useState<FieldConfig>(DEFAULT_CONFIG);
+  const [showAdmin, setShowAdmin] = useState(false);
   const isMobile = useIsMobile();
   const now = useNow();
   const canManage = !isMobile;
+  const isAdmin = currentUser.role === "admin";
 
   useEffect(() => {
     void resolveActiveUser().then(setCurrentUser);
   }, []);
+
+  useEffect(() => {
+    void activeConfigService.load().then(setConfig);
+  }, []);
+
+  // The Dataverse adapter needs the live config to know which custom columns
+  // to select and write, and the config can change while the app is running.
+  useEffect(() => {
+    setDataverseFieldConfig(() => config);
+  }, [config]);
+
+  async function saveConfig(next: FieldConfig) {
+    const saved = await activeConfigService.save(next);
+    setConfig(saved);
+    // Custom columns may have been added or removed, so re-read the records.
+    setRecords(await boloService.list());
+  }
 
   useEffect(() => {
     void boloService
@@ -120,29 +138,35 @@ function App() {
       if (record.kind !== kind) return false;
       if (!statusFilter.includes(record.status)) return false;
       if (!normalizedQuery) return true;
-      return [
+      // Search every configured field for this kind plus the always-present
+      // identifiers, so admin-added fields are searchable too.
+      const haystack = [
         displayName(record),
-        record.aka,
         record.caseNumber,
-        record.boloType,
         lastKnownLocation(record),
-        record.age,
-        record.height,
-        record.hairColor,
-        record.eyeColor,
-        record.vehicleColor,
-        record.plateNumber,
-        record.plateState,
-        ...record.race,
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(normalizedQuery);
+        ...fieldsFor(config, kind).map((field) => fieldValueText(record, field.key)),
+      ];
+      return haystack.join(" ").toLowerCase().includes(normalizedQuery);
     });
-  }, [kind, query, records, statusFilter]);
+  }, [config, kind, query, records, statusFilter]);
 
   const selectedRecord = records.find((record) => record.id === selectedId) ?? null;
   const openCount = records.filter((record) => record.status === "Open").length;
+
+  // Pending fields have no column yet, so showing them on the form would let
+  // someone type a value that silently vanishes on save.
+  const formFields = useMemo(
+    () => fieldsFor(config, form.kind).filter((field) => !isPending(field)),
+    [config, form.kind],
+  );
+  const cardFields = useMemo(
+    () => fieldsFor(config, kind, { onCard: true }).filter((field) => !isPending(field)),
+    [config, kind],
+  );
+  const detailFields = useMemo(
+    () => (selectedRecord ? fieldsFor(config, selectedRecord.kind).filter((field) => !isPending(field)) : []),
+    [config, selectedRecord],
+  );
 
   function changeKind(nextKind: RecordKind) {
     setKind(nextKind);
@@ -153,13 +177,13 @@ function App() {
     }));
   }
 
-  function toggleRace(option: string) {
-    setForm((current) => ({
-      ...current,
-      race: current.race.includes(option)
-        ? current.race.filter((value) => value !== option)
-        : [...current.race, option],
-    }));
+  /** Writes a built-in property or a custom value depending on the field key. */
+  function setFieldValue(key: string, value: string | string[]) {
+    setForm((current) =>
+      key in current
+        ? ({ ...current, [key]: value } as NewBoloRecord)
+        : { ...current, custom: { ...current.custom, [key]: value } },
+    );
   }
 
   async function selectPhoto(file: File | undefined) {
@@ -247,7 +271,14 @@ function App() {
                 : "Search active person and vehicle BOLOs on scene. Records are issued and updated from the dispatch console."}
             </p>
           </div>
-          {canManage && <button className="primary-button" onClick={startCreate}>＋ New BOLO</button>}
+          {canManage && (
+            <div className="hero-actions">
+              {isAdmin && (
+                <button className="secondary-button" onClick={() => setShowAdmin(true)}>⚙ Customize fields</button>
+              )}
+              <button className="primary-button" onClick={startCreate}>＋ New BOLO</button>
+            </div>
+          )}
         </section>
 
         {loadError && (
@@ -295,9 +326,12 @@ function App() {
                   <div className="record-heading"><h2>{displayName(record)}</h2><span className={`status ${record.status.toLowerCase()}`}>{record.status}</span></div>
                   <p>{record.boloType}{record.caseNumber && <> <span className="dot">·</span> {record.caseNumber}</>}</p>
                   <p className="muted">
-                    {record.kind === "person"
-                      ? [record.age, record.height, record.race.join(", ")].filter(Boolean).join(" · ")
-                      : vehicleSummary(record)}
+                    {cardFields
+                      // Name and BOLO type already headline the card.
+                      .filter((field) => !["firstName", "middleName", "lastName", "boloType", "caseNumber", "vehicleYear", "vehicleMake", "vehicleModel"].includes(field.key))
+                      .map((field) => fieldValueText(record, field.key))
+                      .filter(Boolean)
+                      .join(" · ") || (record.kind === "vehicle" ? vehicleSummary(record) : "")}
                   </p>
                   <p className="muted">Last seen: {lastKnownLocation(record) || "Unknown"}</p>
                 </div>
@@ -332,32 +366,14 @@ function App() {
                   <dd><img className="detail-photo" src={selectedRecord.photoUrl} alt={displayName(selectedRecord)} /></dd>
                 </div>
               )}
-              {selectedRecord.kind === "person" ? (
-                <>
-                  <div><dt>First name</dt><dd>{selectedRecord.firstName || "—"}</dd></div>
-                  <div><dt>Middle name</dt><dd>{selectedRecord.middleName || "—"}</dd></div>
-                  <div><dt>Last name</dt><dd>{selectedRecord.lastName || "—"}</dd></div>
-                  <div><dt>AKA</dt><dd>{selectedRecord.aka || "—"}</dd></div>
-                  <div><dt>Age range</dt><dd>{selectedRecord.age || "—"}</dd></div>
-                  <div><dt>Height</dt><dd>{selectedRecord.height || "—"}</dd></div>
-                  <div><dt>Hair color</dt><dd>{selectedRecord.hairColor || "—"}</dd></div>
-                  <div><dt>Eye color</dt><dd>{selectedRecord.eyeColor || "—"}</dd></div>
-                  <div className="full"><dt>Race</dt><dd>{selectedRecord.race.length ? selectedRecord.race.join(", ") : "—"}</dd></div>
-                </>
-              ) : (
-                <>
-                  <div><dt>Year</dt><dd>{selectedRecord.vehicleYear || "—"}</dd></div>
-                  <div><dt>Make</dt><dd>{selectedRecord.vehicleMake || "—"}</dd></div>
-                  <div><dt>Model</dt><dd>{selectedRecord.vehicleModel || "—"}</dd></div>
-                  <div><dt>Color</dt><dd>{selectedRecord.vehicleColor || "—"}</dd></div>
-                  <div><dt>Plate number</dt><dd>{selectedRecord.plateNumber || "—"}</dd></div>
-                  <div><dt>Plate issuing state</dt><dd>{selectedRecord.plateState || "—"}</dd></div>
-                </>
-              )}
-              <div><dt>City</dt><dd>{selectedRecord.city || "—"}</dd></div>
-              <div><dt>State</dt><dd>{selectedRecord.state || "—"}</dd></div>
-              <div><dt>Case number</dt><dd>{selectedRecord.caseNumber || "Not provided"}</dd></div>
-              <div className="full"><dt>Case details</dt><dd>{selectedRecord.details || "—"}</dd></div>
+              {detailFields
+                .filter((field) => field.type !== "photo")
+                .map((field) => (
+                  <div key={field.key} className={field.full || field.type === "textarea" || field.type === "multiselect" ? "full" : undefined}>
+                    <dt>{field.label}</dt>
+                    <dd>{fieldValueText(selectedRecord, field.key) || "—"}</dd>
+                  </div>
+                ))}
             </dl>
 
             <div className="modal-actions">
@@ -386,52 +402,19 @@ function App() {
             {editingId && (
               <label>Status<select value={formStatus} onChange={(event) => setFormStatus(event.target.value as BoloStatus)}>{STATUS_OPTIONS.map((status) => <option key={status} value={status}>{status}</option>)}</select></label>
             )}
-            <label>BOLO type<select value={form.boloType} onChange={(event) => setForm({ ...form, boloType: event.target.value })}>{boloTypeOptions(form.kind, form.boloType).map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
-
-            {form.kind === "person" ? <>
-              <label>First name<input required value={form.firstName} onChange={(event) => setForm({ ...form, firstName: event.target.value })} placeholder="First name" /></label>
-              <label>Middle name<input value={form.middleName} onChange={(event) => setForm({ ...form, middleName: event.target.value })} placeholder="Middle name (optional)" /></label>
-              <label>Last name<input required value={form.lastName} onChange={(event) => setForm({ ...form, lastName: event.target.value })} placeholder="Last name" /></label>
-              <label>AKA<input value={form.aka} onChange={(event) => setForm({ ...form, aka: event.target.value })} placeholder="Alias or nickname" /></label>
-              <label>Age range<select value={form.age} onChange={(event) => setForm({ ...form, age: event.target.value })}><option value="">Select an age range</option>{AGE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
-              <label>Height<select value={form.height} onChange={(event) => setForm({ ...form, height: event.target.value })}><option value="">Select a height range</option>{HEIGHT_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
-              <label>Hair color<select value={form.hairColor} onChange={(event) => setForm({ ...form, hairColor: event.target.value })}><option value="">Select a hair color</option>{HAIR_COLOR_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
-              <label>Eye color<select value={form.eyeColor} onChange={(event) => setForm({ ...form, eyeColor: event.target.value })}><option value="">Select an eye color</option>{EYE_COLOR_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
-              <fieldset className="full checkbox-group">
-                <legend>Race <span className="hint">Select all that apply</span></legend>
-                <div className="checkbox-grid">
-                  {RACE_OPTIONS.map((option) => (
-                    <label className="checkbox" key={option}>
-                      <input type="checkbox" checked={form.race.includes(option)} onChange={() => toggleRace(option)} />
-                      <span>{option}</span>
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-            </> : <>
-              <label>Year<select required value={form.vehicleYear} onChange={(event) => setForm({ ...form, vehicleYear: event.target.value })}><option value="">Select a year</option>{VEHICLE_YEAR_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
-              <label>Make<select required value={form.vehicleMake} onChange={(event) => setForm({ ...form, vehicleMake: event.target.value })}><option value="">Select a make</option>{VEHICLE_MAKE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
-              <label>Model<input required value={form.vehicleModel} onChange={(event) => setForm({ ...form, vehicleModel: event.target.value })} placeholder="e.g. Explorer" /></label>
-              <label>Color<select value={form.vehicleColor} onChange={(event) => setForm({ ...form, vehicleColor: event.target.value })}><option value="">Select a color</option>{VEHICLE_COLOR_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
-              <label>Plate number<input value={form.plateNumber} onChange={(event) => setForm({ ...form, plateNumber: event.target.value.toUpperCase() })} placeholder="e.g. ABC1234" /></label>
-              <label>Plate issuing state<select value={form.plateState} onChange={(event) => setForm({ ...form, plateState: event.target.value })}><option value="">Select a state</option>{STATE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
-            </>}
-
-            <label>City<input required value={form.city} onChange={(event) => setForm({ ...form, city: event.target.value })} placeholder="City" /></label>
-            <label>State<select required value={form.state} onChange={(event) => setForm({ ...form, state: event.target.value })}><option value="">Select a state</option>{STATE_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
-            <label>Case number <span className="hint">Optional</span><input value={form.caseNumber} onChange={(event) => setForm({ ...form, caseNumber: event.target.value })} placeholder="e.g. MP-2025-1042" /></label>
-            <label className="full">Photo <span className="hint">Optional</span>
-              <div className="photo-field">
-                {form.photoUrl
-                  ? <img className="photo-preview" src={form.photoUrl} alt="Selected BOLO" />
-                  : <div className="photo-placeholder">No photo</div>}
-                <div className="photo-actions">
-                  <input type="file" accept="image/*" onChange={(event) => selectPhoto(event.target.files?.[0])} />
-                  {form.photoUrl && <button type="button" className="secondary-button" onClick={() => setForm({ ...form, photoUrl: "" })}>Remove photo</button>}
-                </div>
-              </div>
-            </label>
-            <label className="full">Case details<textarea required rows={4} value={form.details} onChange={(event) => setForm({ ...form, details: event.target.value })} placeholder="Add details your team should know." /></label>
+            {formFields.map((field) => (
+              <FieldInput
+                key={field.key}
+                // The BOLO type choices depend on the record kind, so they are
+                // resolved here rather than baked into the stored config.
+                field={field.key === "boloType"
+                  ? { ...field, options: boloTypeOptions(form.kind, form.boloType) }
+                  : field}
+                form={form}
+                onChange={setFieldValue}
+                onPhoto={selectPhoto}
+              />
+            ))}
           </div>
           <div className="modal-actions">
             {saveError && <span className="save-error">{saveError}</span>}
@@ -440,6 +423,9 @@ function App() {
           </div>
         </form>
       </div>}
+      {showAdmin && canManage && isAdmin && (
+        <FieldAdmin config={config} onSave={saveConfig} onClose={() => setShowAdmin(false)} />
+      )}
     </div>
   );
 }
