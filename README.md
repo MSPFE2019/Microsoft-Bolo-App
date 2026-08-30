@@ -1,121 +1,230 @@
-# BOLO App — Power Apps Code App
+# BOLO App
 
-This repository is being remade as a React/TypeScript Power Apps Code App. The starter keeps the original app's core workflow: submit and search person or vehicle BOLOs, with records ready to be backed by Dataverse and posted to Teams through Power Automate.
+A **BOLO** ("Be On the Lookout") app for law enforcement dispatch. Officers can issue, search, and update alerts for missing people, wanted persons, and stolen vehicles.
 
-## Run locally
+It is built as a **Power Apps Code App** — a normal React + TypeScript web app that runs inside Power Apps and stores its data in Dataverse.
+
+---
+
+## Just want to install it? Start here.
+
+If you only want to *run* the app in your own Power Platform environment, you do **not** need to build anything or install any developer tools. Skip to **[Install the app](#install-the-app-no-coding-required)**.
+
+If you want to *change the code*, see **[Set up for development](#set-up-for-development)**.
+
+---
+
+## What the app does
+
+- **Two kinds of BOLO** — Person and Vehicle, each with its own fields.
+- **Search** — filter by name, case number, plate, description, and more.
+- **Status tracking** — every BOLO is Open, Closed, or Archived. Only Open records show by default.
+- **Photos** — attach a photo to a record.
+- **Roles** — Officers can search and create; Administrators can also edit any record and customize the app.
+- **Customizable fields** — administrators can add, remove, rename, and reorder form fields without touching code. See [Customize fields](#customize-fields-administrators).
+
+---
+
+## Install the app (no coding required)
+
+### What you need first
+
+1. A **Power Platform environment** with **Dataverse** enabled.
+2. The **System Administrator** role in that environment.
+3. A Power Apps license for everyone who will use the app.
+
+### Which file do I pick?
+
+There are two files in the [`solutions/`](solutions) folder. They contain the same app — the difference is how locked-down it is:
+
+| File | Use it when | Can you edit it after import? |
+| --- | --- | --- |
+| `BoloCodeApp_managed.zip` | **Most people should pick this.** For production, or any environment where you just want to run the app. | No — it's read-only, and can be cleanly uninstalled. |
+| `BoloCodeApp.zip` | You want to modify the app inside Power Apps, or you're setting up a development environment. | Yes — but it cannot be cleanly uninstalled. |
+
+> **Rule of thumb:** use **managed** unless you specifically intend to edit the app in the target environment.
+
+### Import steps
+
+1. Download the `.zip` file you chose from the [`solutions/`](solutions) folder.
+   *(On GitHub: click the file, then click **Download raw file**. Do not unzip it.)*
+2. Go to [make.powerapps.com](https://make.powerapps.com) and sign in.
+   *(US Government cloud: use [make.gov.powerapps.us](https://make.gov.powerapps.us).)*
+3. Confirm you're in the right environment using the environment picker in the top-right corner.
+4. In the left menu, select **Solutions**.
+5. On the toolbar, select **Import solution**.
+6. Select **Browse**, choose the `.zip` file, then select **Next**.
+7. Review the solution details, then select **Import**. This takes a few minutes.
+8. When it finishes, you'll see the **BOLO Code App** solution in your list.
+
+### What gets installed
+
+| Component | What it's for |
+| --- | --- |
+| `new_personbolo` table | Stores person BOLOs |
+| `new_vehiclebolo` table | Stores vehicle BOLOs |
+| `new_boloconfig` table | Stores the admin field configuration |
+| `BOLO Officer` security role | Search and create BOLOs |
+| `BOLO Administrator` security role | Everything an officer can do, plus edit any record and customize fields |
+| BOLO App | The app itself |
+
+### After importing: assign security roles
+
+**This step is required.** Nobody can use the app until they have a role.
+
+1. Go to the [Power Platform admin center](https://admin.powerplatform.microsoft.com).
+2. Select **Environments**, choose your environment, then select **Settings**.
+3. Under **Users + permissions**, select **Users**.
+4. Select a user, then select **Manage security roles**.
+5. Tick **BOLO Officer** (or **BOLO Administrator**), then **Save**.
+
+> **Give at least one person the `BOLO Administrator` role** — otherwise nobody can customize fields or edit other people's records. The app decides whether you're an admin by checking this exact role, so the name must not be changed.
+
+### Share the app
+
+1. In [make.powerapps.com](https://make.powerapps.com), select **Apps**.
+2. Select **BOLO App**, then select **Share**.
+3. Add your users or a security group, then **Share**.
+
+---
+
+## Using the app
+
+### Create a BOLO
+Select **＋ New BOLO**, choose **Person** or **Vehicle**, fill in the fields, and select **Create BOLO**. Only the fields your administrator has enabled will appear.
+
+### Search
+Type in the search box to match across all visible fields. Use the **Status** buttons to include Closed or Archived records — by default you only see **Open** ones.
+
+### Edit or close a BOLO
+Select a record to open it. If you created it (or you're an administrator), select **Edit**, change the **Status** to `Closed` or `Archived`, and save.
+
+---
+
+## Customize fields (administrators)
+
+Administrators see a **⚙ Customize fields** button on the main page. It lets you:
+
+- Show or hide any field on the **form** and the **search results card**, independently
+- Reorder fields
+- Rename field labels
+- Mark fields required
+- Edit the choices in any dropdown or checkbox list
+- Add brand-new custom fields
+
+Changes are saved to Dataverse and apply to **everyone** using the app.
+
+### Important: adding a *new* field takes two steps
+
+Power Apps code apps cannot create Dataverse columns while running. So adding a field is a two-step process:
+
+**Step 1 — In the app.** Add the field in the Customize fields screen and save. It appears with a **Pending** tag and is *not* yet usable — it's hidden from the form so nobody can type data that would be thrown away.
+
+**Step 2 — Run the provisioning script.** This creates the real Dataverse column and flips the field to live:
+
+```powershell
+./scripts/provision-custom-fields.ps1
+```
+
+The script will prompt you to sign in. After it finishes, refresh the app and the field is ready to use.
+
+Hiding, reordering, renaming, and editing choices all take effect **immediately** — only *adding a new field* needs the script.
+
+---
+
+## Set up for development
+
+Only needed if you want to change the code.
+
+### Install these first
+
+| Tool | Notes |
+| --- | --- |
+| [Node.js](https://nodejs.org) LTS | Includes `npm` |
+| [Power Platform CLI](https://aka.ms/PowerAppsCLI) | Provides the `pac` command |
+| [Git](https://git-scm.com) | To clone this repo |
+
+### Run it on your machine
 
 ```bash
+git clone https://github.com/MSPFE2019/Microsoft-Bolo-App.git
+cd Microsoft-Bolo-App
 npm install
 npm run dev
 ```
 
-The app starts with representative demo records. `src/services/boloService.ts` is the local integration boundary, and `src/services/dataverseService.ts` adapts the generated Power Apps Dataverse services to the UI's record model.
+Open the URL it prints (usually <http://localhost:3000>).
 
-## Connect Dataverse
+Locally the app uses **built-in sample data** — it does not touch Dataverse, so you can experiment freely. Local mode also signs you in as an administrator so you can try the admin features.
 
-Create two Dataverse tables in the target environment, such as `new_personbolo` and `new_vehicle`, with these columns:
-
-| Column | Type |
-| --- | --- |
-| `new_subject` | Text |
-| `new_bolotype` | Text or Choice |
-| `new_bolostatus` | Choice: Open, Closed, Transferred |
-| `new_casenumber` | Text |
-| `new_details` | Multiline text |
-| `new_lastknownlocation` | Text |
-| `new_secondary` | Text |
-
-After initializing the code app for the environment, register both tables so Power Apps generates strongly typed services:
-
-```powershell
-pac code add-data-source --connector dataverse --table new_personbolo
-pac code add-data-source --connector dataverse --table new_vehicle
-```
-
-Pass the generated services to `createDataverseBoloService` in `src/services/boloService.ts` (or a small environment-specific composition module). This keeps Dataverse authentication and generated API details out of the responsive UI.
-
-## Power Platform integration
-
-The original solution and its SharePoint/Teams workflow definitions remain available in `MicrosoftBOLOApp_1_0_0_4.zip`. The new code app intentionally does not include environment-specific connection secrets or URLs. Configure those in the Power Platform environment and expose only the required operations to the service adapter.
-
-## Build
+### Build
 
 ```bash
 npm run build
 ```
 
-## Original solution
+Output goes to `dist/`.
 
-The original canvas app submitted BOLOs to SharePoint and posted them to Teams.
+### Deploy your changes
 
-![Screenshot](https://github.com/MSPFE2019/Microsoft-Bolo-App/blob/main/Loading_BOLO_App.jpg)
-![Screenshot](https://github.com/MSPFE2019/Microsoft-Bolo-App/blob/main/Main%20Screen.jpg)
-![Screenshot](https://github.com/MSPFE2019/Microsoft-Bolo-App/blob/main/SearchVehicle.jpg)
+```bash
+# One-time: connect to your environment
+pac auth create --environment <your-environment-id>
 
+# Every time you deploy
+npm run build
+npx @microsoft/power-apps-cli app push --solution-id <your-solution-guid>
+```
 
-This app uses standard Power Platform connectors with a SharePoint backend.
+Find your solution's GUID with:
 
-## Import the solution
+```bash
+npx @microsoft/power-apps-cli solution list
+```
 
-Sign in to Power Apps and select **Solutions** from the left navigation.
+> For US Government (GCC) environments, set `CLOUD_INSTANCE=gccmoderate` and `ENVIRONMENT_ID=<your-environment-id>` before pushing.
 
-On the command bar, select **Import**.
+### Export the solution files yourself
 
-[Download Microsoft Bolo App solution](https://github.com/MSPFE2019/Microsoft-Bolo-App/blob/main/MicrosoftBOLOApp_1_0_0_4.zip)
+After pushing, re-export both `.zip` files from **make.powerapps.com** → **Solutions** → select **BOLO Code App** → **Export solution**, choosing **Unmanaged** and then **Managed**. Save them into `solutions/`.
 
-On the Import a solution page, select Browse to locate the compressed (.zip or .cab) file that contains the solution you want to import.
+---
 
-Select Next.
+## How the code is organized
 
-Information about the solution is displayed. By default, in the **Advanced settings** section, if SDK messages and flows exist in the solution, they are imported. Clear the **Enable SDK messages and flows included in the solution** option if you want them imported in an inactive state.
+| Path | What's in it |
+| --- | --- |
+| `src/App.tsx` | Main screen — search, list, detail, and form |
+| `src/fieldConfig.ts` | Defines every built-in field and the config format |
+| `src/FieldAdmin.tsx` | The **Customize fields** admin screen |
+| `src/FieldInput.tsx` | Renders a single form field |
+| `src/customColumns.ts` | Maps custom fields to Dataverse columns |
+| `src/services/boloService.ts` | Sample data used when running locally |
+| `src/services/dataverseService.ts` | Real Dataverse reads/writes and the admin role check |
+| `src/services/configService.ts` | Saves and loads the field configuration |
+| `scripts/` | PowerShell setup and provisioning scripts |
+| `solutions/` | Importable managed and unmanaged solution files |
 
-If your solution contains connection references, you’ll be prompted to select the connections you want. If a connection does not already exist, create a new one. Select Next.
+The app talks to Dataverse through one interface (`BoloService`), with two implementations — sample data locally, Dataverse when deployed. Everything else is unaware of which one is in use.
 
-The solution has one environment variable:
+---
 
-`SPO Site for BOLO App` - `https://contoso.sharepoint.com/sites/MicrosoftBoloApp`
+## Troubleshooting
 
+**I don't see the ⚙ Customize fields button.**
+You need the `BOLO Administrator` security role. Assign it in the admin center (see [above](#after-importing-assign-security-roles)), then hard-refresh the app with `Ctrl`+`Shift`+`R`. If it still doesn't appear, open your browser console (`F12`) and look for a line starting with `[BOLO] role check` — it reports the role the app resolved and why.
 
+**A field I added doesn't show up on the form.**
+It's still **Pending**. Run `./scripts/provision-custom-fields.ps1`, then refresh.
 
-If missing dependencies are detected in the target environment, a list of the dependencies is presented. In environments where the required package version is available for import in the target environment, a link to resolve the dependency is presented. Selecting the link takes you to the Power Platform admin center where you can install the application update. After the application update is completed, you can start the solution import again.
+**The app is blank or shows a loading error.**
+Usually a missing security role. Confirm the user has `BOLO Officer` or `BOLO Administrator`.
 
-Select Import.
+**My changes don't appear after deploying.**
+Your browser cached the old version. Hard-refresh with `Ctrl`+`Shift`+`R`.
 
+---
 
-## Service account for Power Automate
+## License
 
-The account needs an E1-E5 or G1-G5 license with Power Apps and Power Automate enabled.
-
-
-## Imported components
-
-### Flows
-- `CreateList_EyeColor`: List for eye colors
-- `CreateList_HairColor`: List for hair colors
-- `CreateList_ListofState`: List for state names and abbreviations
-- `CreateList_PersonBolo`: Person BOLO records are stored here
-- `CreateList_Vehicle`: Vehicle BOLO records are stored here
-- `CreateList_VehicleColor`: List of vehicle colors
-- `CreateList_VehicleList`: List of vehicle makes
-
-### App
-`BOLO App (Phone) v2`
-
-## App setup
-
-- Populate the created lists (colors, vehicles, and states) on the site with data.
-- Navigate to the `PersonBolo` list and change or add values to the `Bolo Type` field.
-- Navigate to the `Vehicle` list and change or add values to the `Bolo Type` field.
-- Remove SharePoint connections from Power Apps, then re-add a connection to the new site.
-
-## Teams adaptive card setup
-
-### Missing person adaptive card
-- Create Teams channels that correspond to your BOLO type.
-- Open and edit `Missing Person AC Posting`. In the `Switch` step (last step in the flow), adjust `Case` and `Case 2` to match your BOLO type.
-- Update `Post adaptive card in a chat or channel` steps with the correct team and channel names.
-
-### Vehicle adaptive card
-- Create Teams channels that correspond to your BOLO type.
-- Open and edit `Vehicle AC Posting`. In the `Switch` step (last step in the flow), adjust `Case` and `Case 2` to match your BOLO type.
-- Update `Post adaptive card in a chat or channel` steps with the correct team and channel names.
+See [LICENSE](LICENSE).
