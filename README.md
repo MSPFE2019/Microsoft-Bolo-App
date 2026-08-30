@@ -1,6 +1,52 @@
-# Microsoft-Bolo-App
+# BOLO App — Power Apps Code App
 
-Submit BOLOs to a SharePoint list through a Power App, then post to a Teams channel.
+This repository is being remade as a React/TypeScript Power Apps Code App. The starter keeps the original app's core workflow: submit and search person or vehicle BOLOs, with records ready to be backed by Dataverse and posted to Teams through Power Automate.
+
+## Run locally
+
+```bash
+npm install
+npm run dev
+```
+
+The app starts with representative demo records. `src/services/boloService.ts` is the local integration boundary, and `src/services/dataverseService.ts` adapts the generated Power Apps Dataverse services to the UI's record model.
+
+## Connect Dataverse
+
+Create two Dataverse tables in the target environment, such as `new_personbolo` and `new_vehicle`, with these columns:
+
+| Column | Type |
+| --- | --- |
+| `new_subject` | Text |
+| `new_bolotype` | Text or Choice |
+| `new_bolostatus` | Choice: Open, Closed, Transferred |
+| `new_casenumber` | Text |
+| `new_details` | Multiline text |
+| `new_lastknownlocation` | Text |
+| `new_secondary` | Text |
+
+After initializing the code app for the environment, register both tables so Power Apps generates strongly typed services:
+
+```powershell
+pac code add-data-source --connector dataverse --table new_personbolo
+pac code add-data-source --connector dataverse --table new_vehicle
+```
+
+Pass the generated services to `createDataverseBoloService` in `src/services/boloService.ts` (or a small environment-specific composition module). This keeps Dataverse authentication and generated API details out of the responsive UI.
+
+## Power Platform integration
+
+The original solution and its SharePoint/Teams workflow definitions remain available in `MicrosoftBOLOApp_1_0_0_4.zip`. The new code app intentionally does not include environment-specific connection secrets or URLs. Configure those in the Power Platform environment and expose only the required operations to the service adapter.
+
+## Build
+
+```bash
+npm run build
+```
+
+## Original solution
+
+The original canvas app submitted BOLOs to SharePoint and posted them to Teams.
 
 ![Screenshot](https://github.com/MSPFE2019/Microsoft-Bolo-App/blob/main/Loading_BOLO_App.jpg)
 ![Screenshot](https://github.com/MSPFE2019/Microsoft-Bolo-App/blob/main/Main%20Screen.jpg)
