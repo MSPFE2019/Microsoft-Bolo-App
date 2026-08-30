@@ -24,6 +24,10 @@
         "boloconfigs": {
           "entitySetName": "new_boloconfigs",
           "logicalName": "new_boloconfig"
+        },
+        "securityroles": {
+          "entitySetName": "roles",
+          "logicalName": "role"
         }
       },
       "environmentVariableName": ""

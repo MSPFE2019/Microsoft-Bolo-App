@@ -1,7 +1,7 @@
 import { getContext } from "@microsoft/power-apps/app";
-import { getClient } from "@microsoft/power-apps/data";
 import { New_personbolosService } from "../generated/services/New_personbolosService";
 import { New_vehiclebolosService } from "../generated/services/New_vehiclebolosService";
+import { RolesService } from "../generated/services/RolesService";
 import type { New_personbolos } from "../generated/models/New_personbolosModel";
 import type { New_vehiclebolos } from "../generated/models/New_vehiclebolosModel";
 import { displayName } from "../types";
@@ -36,12 +36,6 @@ function readCustom(row: AnyRow, kind: RecordKind): Record<string, string | stri
 function splitRace(value?: string): string[] {
   return value ? value.split(";").map((entry) => entry.trim()).filter(Boolean) : [];
 }
-
-// The role table isn't an app data source, so it is declared here to query
-// role membership for the admin check.
-const roleDataSource = {
-  roles: { tableId: "", version: "", primaryKey: "roleid", dataSourceType: "Dataverse", apis: {} },
-};
 
 function toRecord(row: AnyRow, kind: RecordKind): BoloRecord {
   const id =
@@ -148,10 +142,9 @@ const ADMIN_ROLE_NAME = "BOLO Administrator";
 
 async function resolveRole(objectId: string, fallbackRole: AppUser["role"]): Promise<AppUser["role"]> {
   try {
-    const client = getClient(roleDataSource as never);
     // Match the role to *this* user via the membership association. Querying
     // `roles` alone would return every role in the org and make everyone admin.
-    const result = await client.retrieveMultipleRecordsAsync<{ roleid?: string }>("roles", {
+    const result = await RolesService.getAll({
       select: ["roleid"],
       filter:
         `name eq '${ADMIN_ROLE_NAME}' and ` +

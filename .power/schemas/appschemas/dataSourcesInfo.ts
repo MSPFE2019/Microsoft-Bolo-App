@@ -19,6 +19,13 @@ export const dataSourcesInfo = {
     "dataSourceType": "Dataverse",
     "apis": {}
   },
+  "roles": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "roleid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
   "new_vehiclebolos": {
     "tableId": "",
     "version": "",
