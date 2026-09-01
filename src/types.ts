@@ -33,6 +33,7 @@ export interface BoloRecord {
   age: string;
   race: string[];
   height: string;
+  weight: string;
   hairColor: string;
   eyeColor: string;
 
@@ -133,6 +134,19 @@ export const HEIGHT_OPTIONS = [
   "5'8\" - 5'11\"",
   "6'0\" - 6'3\"",
   "6'4\" and over",
+  "Unknown",
+];
+
+export const WEIGHT_OPTIONS = [
+  "Under 100 lbs",
+  "100 - 119 lbs",
+  "120 - 139 lbs",
+  "140 - 159 lbs",
+  "160 - 179 lbs",
+  "180 - 199 lbs",
+  "200 - 224 lbs",
+  "225 - 249 lbs",
+  "250 lbs and over",
   "Unknown",
 ];
 

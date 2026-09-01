@@ -14,6 +14,8 @@ import type { BoloService } from "./boloService";
 type PersonRow = Partial<New_personbolos> & {
   /** Provisioned alongside this build; see scripts/provision-dateofbirth.ps1. */
   new_dateofbirth?: string | null;
+  /** Provisioned alongside this build; see scripts/provision-weight.ps1. */
+  new_weight?: string | null;
 };
 type VehicleRow = Partial<New_vehiclebolos>;
 type AnyRow = PersonRow & VehicleRow;
@@ -64,6 +66,7 @@ function toRecord(row: AnyRow, kind: RecordKind): BoloRecord {
     age: (row as PersonRow).new_age ?? "",
     race: splitRace((row as PersonRow).new_race),
     height: (row as PersonRow).new_height ?? "",
+    weight: (row as PersonRow).new_weight ?? "",
     hairColor: (row as PersonRow).new_haircolor ?? "",
     eyeColor: (row as PersonRow).new_eyecolor ?? "",
     city: row.new_city ?? "",
@@ -105,6 +108,7 @@ function personColumns(input: NewBoloRecord) {
     new_age: input.age,
     new_race: input.race.join(";"),
     new_height: input.height,
+    new_weight: input.weight,
     new_haircolor: input.hairColor,
     new_eyecolor: input.eyeColor,
   };
@@ -176,7 +180,7 @@ const PERSON_SELECT_BASE = [
   "new_personboloid", "new_name", "new_bolotype", "new_bolostatus", "new_casenumber",
   "new_casedetails", "new_ownername", "new_photourl", "new_city", "new_state",
   "new_firstname", "new_middlename", "new_lastname", "new_aka", "new_dateofbirth", "new_age",
-  "new_race", "new_height", "new_haircolor", "new_eyecolor", "createdon",
+  "new_race", "new_height", "new_weight", "new_haircolor", "new_eyecolor", "createdon",
 ];
 
 const VEHICLE_SELECT_BASE = [

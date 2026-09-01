@@ -59,6 +59,7 @@ const emptyForm: NewBoloRecord = {
   age: "",
   race: [],
   height: "",
+  weight: "",
   hairColor: "",
   eyeColor: "",
   city: "",
