@@ -44,7 +44,7 @@ import { setDataverseFieldConfig } from "./services/dataverseService";
 import { FieldInput } from "./FieldInput";
 import { FieldAdmin } from "./FieldAdmin";
 import { fileToStoredPhoto, MAX_PHOTOS, PHOTO_BUDGET } from "./photo";
-import logoUrl from "./assets/bolo-shield.png";
+import { logoDataUri as logoUrl } from "./assets/logo";
 
 const emptyForm: NewBoloRecord = {
   kind: "person",
