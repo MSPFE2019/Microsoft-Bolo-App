@@ -10,12 +10,15 @@ import type { FieldConfig } from "../fieldConfig";
 import { DEFAULT_CONFIG } from "../fieldConfig";
 import { customColumns as buildCustomColumns, customSelect, readCustom as readCustomValues, toDateInput } from "../customColumns";
 import type { BoloService } from "./boloService";
+import { parsePhotos, serializePhotos } from "../photo";
 
 type PersonRow = Partial<New_personbolos> & {
   /** Provisioned alongside this build; see scripts/provision-dateofbirth.ps1. */
   new_dateofbirth?: string | null;
   /** Provisioned alongside this build; see scripts/provision-weight.ps1. */
   new_weight?: string | null;
+  /** Provisioned alongside this build; see scripts/provision-tattoos.ps1. */
+  new_tattoos?: string | null;
 };
 type VehicleRow = Partial<New_vehiclebolos>;
 type AnyRow = PersonRow & VehicleRow;
@@ -67,6 +70,7 @@ function toRecord(row: AnyRow, kind: RecordKind): BoloRecord {
     race: splitRace((row as PersonRow).new_race),
     height: (row as PersonRow).new_height ?? "",
     weight: (row as PersonRow).new_weight ?? "",
+    tattoos: (row as PersonRow).new_tattoos ?? "",
     hairColor: (row as PersonRow).new_haircolor ?? "",
     eyeColor: (row as PersonRow).new_eyecolor ?? "",
     city: row.new_city ?? "",
@@ -77,7 +81,7 @@ function toRecord(row: AnyRow, kind: RecordKind): BoloRecord {
     vehicleColor: (row as VehicleRow).new_vehiclecolor ?? "",
     plateNumber: (row as VehicleRow).new_platenumber ?? "",
     plateState: (row as VehicleRow).new_platestate ?? "",
-    photoUrl: row.new_photourl ?? "",
+    photoUrl: parsePhotos(row.new_photourl),
     custom: readCustom(row, kind),
   };
 }
@@ -91,7 +95,7 @@ function sharedColumns(input: NewBoloRecord) {
     new_casedetails: input.details,
     new_city: input.city,
     new_state: input.state,
-    new_photourl: input.photoUrl,
+    new_photourl: serializePhotos(input.photoUrl),
     ...customColumns(input),
   };
 }
@@ -109,6 +113,7 @@ function personColumns(input: NewBoloRecord) {
     new_race: input.race.join(";"),
     new_height: input.height,
     new_weight: input.weight,
+    new_tattoos: input.tattoos,
     new_haircolor: input.hairColor,
     new_eyecolor: input.eyeColor,
   };
@@ -180,7 +185,7 @@ const PERSON_SELECT_BASE = [
   "new_personboloid", "new_name", "new_bolotype", "new_bolostatus", "new_casenumber",
   "new_casedetails", "new_ownername", "new_photourl", "new_city", "new_state",
   "new_firstname", "new_middlename", "new_lastname", "new_aka", "new_dateofbirth", "new_age",
-  "new_race", "new_height", "new_weight", "new_haircolor", "new_eyecolor", "createdon",
+  "new_race", "new_height", "new_weight", "new_haircolor", "new_eyecolor", "new_tattoos", "createdon",
 ];
 
 const VEHICLE_SELECT_BASE = [

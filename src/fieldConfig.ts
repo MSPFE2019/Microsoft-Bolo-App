@@ -87,6 +87,10 @@ export const BUILTIN_FIELDS: FieldDef[] = [
   def({ key: "weight", label: "Weight", type: "select", scope: "person", options: WEIGHT_OPTIONS, onCard: true }),
   def({ key: "hairColor", label: "Hair color", type: "select", scope: "person", options: HAIR_COLOR_OPTIONS }),
   def({ key: "eyeColor", label: "Eye color", type: "select", scope: "person", options: EYE_COLOR_OPTIONS }),
+  // Free text over a picklist: identifying marks are described, not chosen from
+  // a list, and an officer needs room for several on separate lines.
+  def({ key: "tattoos", label: "Scars, marks & tattoos", type: "textarea", scope: "person", full: true,
+    placeholder: "One per line — e.g.\nLeft forearm: rose\nRight hand: initials JL" }),
   def({ key: "race", label: "Race", type: "multiselect", scope: "person", options: RACE_OPTIONS, full: true, onCard: true }),
 
   def({ key: "vehicleYear", label: "Year", type: "select", scope: "vehicle", options: VEHICLE_YEAR_OPTIONS, required: true, onCard: true }),
@@ -115,7 +119,7 @@ export const RESERVED_COLUMNS = new Set([
   "new_name", "new_bolotype", "new_bolostatus", "new_casenumber", "new_casedetails",
   "new_ownername", "new_photourl", "new_city", "new_state",
   "new_firstname", "new_middlename", "new_lastname", "new_aka", "new_dateofbirth",
-  "new_age", "new_race", "new_height", "new_weight", "new_haircolor", "new_eyecolor",
+  "new_age", "new_race", "new_height", "new_weight", "new_haircolor", "new_eyecolor", "new_tattoos",
   "new_vehicleyear", "new_vehiclemake", "new_vehiclemodel", "new_vehiclecolor",
   "new_platenumber", "new_platestate",
   "new_personboloid", "new_vehicleboloid", "new_boloconfigid", "new_configjson",

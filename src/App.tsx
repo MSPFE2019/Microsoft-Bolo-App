@@ -43,7 +43,7 @@ import type { FieldConfig } from "./fieldConfig";
 import { setDataverseFieldConfig } from "./services/dataverseService";
 import { FieldInput } from "./FieldInput";
 import { FieldAdmin } from "./FieldAdmin";
-import { fileToStoredPhoto } from "./photo";
+import { fileToStoredPhoto, MAX_PHOTOS, PHOTO_BUDGET } from "./photo";
 import logoUrl from "./assets/bolo-shield.png";
 
 const emptyForm: NewBoloRecord = {
@@ -70,7 +70,8 @@ const emptyForm: NewBoloRecord = {
   vehicleColor: "",
   plateNumber: "",
   plateState: "",
-  photoUrl: "",
+  photoUrl: [],
+  tattoos: "",
   custom: {},
 };
 
@@ -84,6 +85,7 @@ function App() {
   const [kind, setKind] = useState<RecordKind>("person");
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [activePhoto, setActivePhoto] = useState(0);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<NewBoloRecord>(emptyForm);
@@ -138,6 +140,10 @@ function App() {
   }, []);
 
   useEffect(() => {
+    setActivePhoto(0);
+  }, [selectedId]);
+
+  useEffect(() => {
     if (isMobile && showForm) {
       setShowForm(false);
       setEditingId(null);
@@ -151,12 +157,16 @@ function App() {
       if (!statusFilter.includes(record.status)) return false;
       if (!normalizedQuery) return true;
       // Search every configured field for this kind plus the always-present
-      // identifiers, so admin-added fields are searchable too.
+      // identifiers, so admin-added fields are searchable too. Photos are
+      // skipped: their base64 data would both bloat the haystack and produce
+      // nonsense matches on strings like "jpeg".
       const haystack = [
         displayName(record),
         record.caseNumber,
         lastKnownLocation(record),
-        ...fieldsFor(config, kind).map((field) => fieldValueText(record, field.key)),
+        ...fieldsFor(config, kind)
+          .filter((field) => field.type !== "photo")
+          .map((field) => fieldValueText(record, field.key)),
       ];
       return haystack.join(" ").toLowerCase().includes(normalizedQuery);
     });
@@ -197,13 +207,29 @@ function App() {
     );
   }
 
-  async function selectPhoto(file: File | undefined) {
-    if (!file) return;
+  async function selectPhoto(files: File[]) {
+    if (files.length === 0) return;
     setSaveError(null);
+    const existing = form.photoUrl;
+    const room = MAX_PHOTOS - existing.length;
+    if (room <= 0) {
+      setSaveError(`A BOLO can hold ${MAX_PHOTOS} photos. Remove one before adding another.`);
+      return;
+    }
+    const accepted = files.slice(0, room);
     try {
-      setForm((current) => ({ ...current, photoUrl: "" }));
-      const photoUrl = await fileToStoredPhoto(file);
-      setForm((current) => ({ ...current, photoUrl }));
+      // All photos share one column, so each new one only gets its fair share
+      // of whatever budget the existing photos left behind.
+      const used = existing.reduce((total, photo) => total + photo.length, 0);
+      const budget = Math.floor((PHOTO_BUDGET - used) / accepted.length);
+      const added: string[] = [];
+      for (const file of accepted) {
+        added.push(await fileToStoredPhoto(file, budget));
+      }
+      setForm((current) => ({ ...current, photoUrl: [...current.photoUrl, ...added].slice(0, MAX_PHOTOS) }));
+      if (files.length > accepted.length) {
+        setSaveError(`Only ${accepted.length} of ${files.length} photos were added — the limit is ${MAX_PHOTOS}.`);
+      }
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : String(error));
     }
@@ -339,17 +365,19 @@ function App() {
                 aria-current={record.id === selectedId}
                 onClick={() => setSelectedId(record.id)} role="button" tabIndex={0}
                 onKeyDown={(event) => (event.key === "Enter" || event.key === " ") && setSelectedId(record.id)}>
-                {record.photoUrl
-                  ? <img className="record-photo" src={record.photoUrl} alt={displayName(record)} />
+                {record.photoUrl.length > 0
+                  ? <img className="record-photo" src={record.photoUrl[0]} alt={displayName(record)} />
                   : <div className={`record-icon ${record.kind}`}>{record.kind === "person" ? "♙" : "▱"}</div>}
                 <div className="record-main">
                   <div className="record-heading"><h2>{displayName(record)}</h2><span className={`status ${record.status.toLowerCase()}`}>{record.status}</span></div>
                   <p>{record.boloType}{record.caseNumber && <> <span className="dot">·</span> {record.caseNumber}</>}</p>
                   <p className="muted">
                     {cardFields
-                      // Name and BOLO type already headline the card.
+                      // Name and BOLO type already headline the card, and the
+                      // photo is the thumbnail rather than a summary value.
+                      .filter((field) => field.type !== "photo")
                       .filter((field) => !["firstName", "middleName", "lastName", "boloType", "caseNumber", "vehicleYear", "vehicleMake", "vehicleModel"].includes(field.key))
-                      .map((field) => fieldValueText(record, field.key))
+                      .map((field) => fieldValueText(record, field.key).replace(/\s*\n\s*/g, "; "))
                       .filter(Boolean)
                       .join(" · ") || (record.kind === "vehicle" ? vehicleSummary(record) : "")}
                   </p>
@@ -380,10 +408,31 @@ function App() {
             </div>
 
             <dl className="detail-grid">
-              {selectedRecord.photoUrl && (
+              {selectedRecord.photoUrl.length > 0 && (
                 <div className="full detail-photo-wrap">
-                  <dt>Photo</dt>
-                  <dd><img className="detail-photo" src={selectedRecord.photoUrl} alt={displayName(selectedRecord)} /></dd>
+                  <dt>{selectedRecord.photoUrl.length > 1 ? `Photos (${selectedRecord.photoUrl.length})` : "Photo"}</dt>
+                  <dd>
+                    <img
+                      className="detail-photo"
+                      src={selectedRecord.photoUrl[Math.min(activePhoto, selectedRecord.photoUrl.length - 1)]}
+                      alt={displayName(selectedRecord)}
+                    />
+                    {selectedRecord.photoUrl.length > 1 && (
+                      <div className="detail-photo-strip">
+                        {selectedRecord.photoUrl.map((photo, index) => (
+                          <button
+                            type="button"
+                            key={`${index}-${photo.slice(-24)}`}
+                            className={index === Math.min(activePhoto, selectedRecord.photoUrl.length - 1) ? "active" : undefined}
+                            aria-label={`Show photo ${index + 1}`}
+                            onClick={() => setActivePhoto(index)}
+                          >
+                            <img src={photo} alt="" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </dd>
                 </div>
               )}
               {detailFields

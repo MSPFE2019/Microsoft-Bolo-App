@@ -1,12 +1,13 @@
 import type { FieldDef } from "./fieldConfig";
 import type { NewBoloRecord } from "./types";
 import { fieldValue } from "./types";
+import { MAX_PHOTOS } from "./photo";
 
 interface FieldInputProps {
   field: FieldDef;
   form: NewBoloRecord;
   onChange: (key: string, value: string | string[]) => void;
-  onPhoto: (file: File | undefined) => void;
+  onPhoto: (files: File[]) => void;
 }
 
 /** Renders one configured field as its matching input control. */
@@ -52,22 +53,59 @@ export function FieldInput({ field, form, onChange, onPhoto }: FieldInputProps) 
   }
 
   if (field.type === "photo") {
+    const photos = Array.isArray(value) ? value : value ? [value] : [];
+    const room = MAX_PHOTOS - photos.length;
     return (
       <label className="full">
         {label}
         <div className="photo-field">
-          {text ? (
-            <img className="photo-preview" src={text} alt="Selected BOLO" />
+          {photos.length > 0 ? (
+            <div className="photo-grid">
+              {photos.map((photo, index) => (
+                <div className="photo-thumb" key={`${index}-${photo.slice(-24)}`}>
+                  <img src={photo} alt={`BOLO photo ${index + 1}`} />
+                  {index === 0 && <span className="photo-badge">Main</span>}
+                  <div className="photo-thumb-actions">
+                    {index > 0 && (
+                      <button
+                        type="button"
+                        title="Make this the main photo"
+                        onClick={() => onChange(field.key, [photo, ...photos.filter((_, i) => i !== index)])}
+                      >
+                        ★
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      title="Remove this photo"
+                      onClick={() => onChange(field.key, photos.filter((_, i) => i !== index))}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : (
-            <div className="photo-placeholder">No photo</div>
+            <div className="photo-placeholder">No photos</div>
           )}
           <div className="photo-actions">
-            <input type="file" accept="image/*" onChange={(event) => onPhoto(event.target.files?.[0])} />
-            {text && (
-              <button type="button" className="secondary-button" onClick={() => onChange(field.key, "")}>
-                Remove photo
-              </button>
-            )}
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              disabled={room <= 0}
+              onChange={(event) => {
+                onPhoto(Array.from(event.target.files ?? []));
+                // Clear the picker so re-choosing the same file still fires.
+                event.target.value = "";
+              }}
+            />
+            <span className="hint">
+              {room > 0
+                ? `Up to ${MAX_PHOTOS} photos · ${room} slot${room === 1 ? "" : "s"} left`
+                : `Limit of ${MAX_PHOTOS} photos reached — remove one to add another`}
+            </span>
           </div>
         </div>
       </label>

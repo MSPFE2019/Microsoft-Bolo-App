@@ -36,6 +36,8 @@ export interface BoloRecord {
   weight: string;
   hairColor: string;
   eyeColor: string;
+  /** Free text; newline-separated so several marks stay readable. */
+  tattoos: string;
 
   city: string;
   state: string;
@@ -47,8 +49,8 @@ export interface BoloRecord {
   plateNumber: string;
   plateState: string;
 
-  /** Data URL (local demo) or Dataverse image download URL. */
-  photoUrl: string;
+  /** Data URLs (local demo) or Dataverse image download URLs. First is the primary. */
+  photoUrl: string[];
 
   /**
    * Values for admin-defined custom fields, keyed by FieldDef.key. Each key is
