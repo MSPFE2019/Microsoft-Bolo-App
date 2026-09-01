@@ -1,9 +1,11 @@
 import { useState } from "react";
-import type { FieldConfig, FieldDef, FieldScope, FieldType } from "./fieldConfig";
-import { PROTECTED_KEYS, isPending, slugToLogicalName } from "./fieldConfig";
+import type { FieldConfig, FieldDef, FieldType } from "./fieldConfig";
+import { PROTECTED_KEYS } from "./fieldConfig";
 
 interface FieldAdminProps {
   config: FieldConfig;
+  /** Re-reads the Dataverse schema and returns the reconciled config. */
+  onRefresh: () => Promise<FieldConfig>;
   onSave: (config: FieldConfig) => Promise<void>;
   onClose: () => void;
 }
@@ -14,23 +16,22 @@ const TYPE_LABELS: Record<FieldType, string> = {
   select: "Dropdown",
   multiselect: "Checkboxes",
   photo: "Photo",
+  date: "Date",
 };
 
-const SCOPE_LABELS: Record<FieldScope, string> = {
+const SCOPE_LABELS: Record<FieldDef["scope"], string> = {
   person: "Person only",
   vehicle: "Vehicle only",
   both: "Both",
 };
 
-export function FieldAdmin({ config, onSave, onClose }: FieldAdminProps) {
+export function FieldAdmin({ config, onRefresh, onSave, onClose }: FieldAdminProps) {
   const [draft, setDraft] = useState<FieldDef[]>(config.fields);
   const [saving, setSaving] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
-
-  const [newLabel, setNewLabel] = useState("");
-  const [newType, setNewType] = useState<FieldType>("text");
-  const [newScope, setNewScope] = useState<FieldScope>("both");
 
   function patch(key: string, changes: Partial<FieldDef>) {
     setDraft((current) => current.map((field) => (field.key === key ? { ...field, ...changes } : field)));
@@ -46,40 +47,34 @@ export function FieldAdmin({ config, onSave, onClose }: FieldAdminProps) {
     });
   }
 
-  function addField() {
-    const label = newLabel.trim();
-    if (!label) return;
-
-    const key = `custom_${label.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "")}`;
-    if (draft.some((field) => field.key === key)) {
-      setError(`A field named "${label}" already exists.`);
-      return;
-    }
-
+  /**
+   * Picks up columns added to the tables since the app loaded. Discovery is
+   * reconciled against the *draft* rather than the saved config so unsaved
+   * edits survive a refresh.
+   */
+  async function refresh() {
+    setRefreshing(true);
     setError(null);
-    setDraft((current) => [
-      ...current,
-      {
-        key,
-        label,
-        type: newType,
-        scope: newScope,
-        options: newType === "select" || newType === "multiselect" ? ["Option 1"] : [],
-        required: false,
-        visible: true,
-        onCard: false,
-        full: newType === "textarea" || newType === "multiselect",
-        builtin: false,
-        logicalName: slugToLogicalName(label),
-        provisioned: false,
-      },
-    ]);
-    setNewLabel("");
-    setExpanded(key);
-  }
+    setNotice(null);
+    try {
+      const before = new Set(draft.map((field) => field.key));
+      const latest = await onRefresh();
+      const merged = latest.fields.map((field) => {
+        const edited = draft.find((candidate) => candidate.key === field.key);
+        return edited ? { ...field, ...edited } : field;
+      });
+      setDraft(merged);
 
-  function removeField(key: string) {
-    setDraft((current) => current.filter((field) => field.key !== key));
+      const added = merged.filter((field) => !before.has(field.key));
+      const removed = [...before].filter(
+        (key) => !merged.some((field) => field.key === key),
+      );
+      setNotice(describeRefresh(added.map((field) => field.label), removed.length));
+    } catch (refreshError) {
+      setError(refreshError instanceof Error ? refreshError.message : String(refreshError));
+    } finally {
+      setRefreshing(false);
+    }
   }
 
   async function save() {
@@ -95,7 +90,7 @@ export function FieldAdmin({ config, onSave, onClose }: FieldAdminProps) {
     }
   }
 
-  const pendingCount = draft.filter((field) => isPending(field)).length;
+  const discoveredCount = draft.filter((field) => !field.builtin).length;
 
   return (
     <div className="modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
@@ -108,18 +103,28 @@ export function FieldAdmin({ config, onSave, onClose }: FieldAdminProps) {
           <button type="button" className="close" onClick={onClose}>×</button>
         </div>
 
-        <p className="admin-intro">
-          Choose which fields appear on the BOLO form and the search results card, reorder them,
-          and edit dropdown choices. Changes apply to everyone using the app.
-        </p>
-
-        {pendingCount > 0 && (
-          <div className="admin-warning" role="status">
-            {pendingCount} field{pendingCount === 1 ? " is" : "s are"} pending. Run{" "}
-            <code>scripts/provision-custom-fields.ps1</code> to create the Dataverse columns, then reload.
-            Pending fields are hidden from the form until then.
+        <div className="admin-intro">
+          <p>
+            Choose which fields appear on the BOLO form and the search results card, reorder them,
+            and edit dropdown choices. Changes apply to everyone using the app.
+          </p>
+          <p className="admin-hint">
+            To add a new field, add a column to the <code>new_personbolo</code> or{" "}
+            <code>new_vehiclebolo</code> table in Power Apps, then select <strong>Refresh</strong>{" "}
+            below to pick it up. Refresh also removes fields whose column was deleted.
+          </p>
+          <div className="admin-refresh-row">
+            <button type="button" className="secondary-button" onClick={refresh} disabled={refreshing}>
+              {refreshing ? "Refreshing..." : "↻ Refresh from Dataverse"}
+            </button>
+            <span className="muted">
+              {discoveredCount === 0
+                ? "No added columns found yet."
+                : `${discoveredCount} added column${discoveredCount === 1 ? "" : "s"} found.`}
+            </span>
           </div>
-        )}
+          {notice && <div className="admin-notice" role="status">{notice}</div>}
+        </div>
 
         <div className="admin-list">
           {draft.map((field, index) => {
@@ -136,10 +141,9 @@ export function FieldAdmin({ config, onSave, onClose }: FieldAdminProps) {
                     <strong>{field.label}</strong>
                     <span className="admin-meta">
                       {TYPE_LABELS[field.type]} · {SCOPE_LABELS[field.scope]}
-                      {!field.builtin && " · Custom"}
+                      {!field.builtin && " · From Dataverse"}
                     </span>
                   </button>
-                  {isPending(field) && <span className="pending-tag">Pending</span>}
                   <label className="admin-toggle" title="Show on the BOLO form">
                     <input type="checkbox" checked={field.visible} onChange={(event) => patch(field.key, { visible: event.target.checked })} />
                     <span>Form</span>
@@ -159,16 +163,8 @@ export function FieldAdmin({ config, onSave, onClose }: FieldAdminProps) {
 
                     {!field.builtin && (
                       <label>
-                        Applies to
-                        <select
-                          value={field.scope}
-                          disabled={field.provisioned}
-                          onChange={(event) => patch(field.key, { scope: event.target.value as FieldScope })}
-                        >
-                          {Object.entries(SCOPE_LABELS).map(([value, text]) => (
-                            <option key={value} value={value}>{text}</option>
-                          ))}
-                        </select>
+                        Dataverse column
+                        <input value={field.logicalName ?? ""} readOnly disabled />
                       </label>
                     )}
 
@@ -198,52 +194,17 @@ export function FieldAdmin({ config, onSave, onClose }: FieldAdminProps) {
                     )}
 
                     <div className="admin-row-actions">
-                      {field.builtin ? (
-                        <span className="muted">
-                          Built-in fields can be hidden and reordered, but not deleted.
-                        </span>
-                      ) : (
-                        <button type="button" className="danger-button" onClick={() => removeField(field.key)}>
-                          Delete field
-                        </button>
-                      )}
+                      <span className="muted">
+                        {field.builtin
+                          ? "Built-in fields can be hidden and reordered, but not deleted."
+                          : "Delete the column in Power Apps, then Refresh, to remove this field."}
+                      </span>
                     </div>
                   </div>
                 )}
               </div>
             );
           })}
-        </div>
-
-        <div className="admin-add">
-          <h3>Add a field</h3>
-          <div className="admin-add-row">
-            <label>
-              Label
-              <input value={newLabel} placeholder="e.g. Tattoos" onChange={(event) => setNewLabel(event.target.value)} />
-            </label>
-            <label>
-              Type
-              <select value={newType} onChange={(event) => setNewType(event.target.value as FieldType)}>
-                {Object.entries(TYPE_LABELS)
-                  .filter(([value]) => value !== "photo")
-                  .map(([value, text]) => (
-                    <option key={value} value={value}>{text}</option>
-                  ))}
-              </select>
-            </label>
-            <label>
-              Applies to
-              <select value={newScope} onChange={(event) => setNewScope(event.target.value as FieldScope)}>
-                {Object.entries(SCOPE_LABELS).map(([value, text]) => (
-                  <option key={value} value={value}>{text}</option>
-                ))}
-              </select>
-            </label>
-            <button type="button" className="secondary-button" onClick={addField} disabled={!newLabel.trim()}>
-              Add
-            </button>
-          </div>
         </div>
 
         <div className="modal-actions">
@@ -256,4 +217,20 @@ export function FieldAdmin({ config, onSave, onClose }: FieldAdminProps) {
       </div>
     </div>
   );
+}
+
+/** Plain-language summary of what a refresh changed. */
+function describeRefresh(addedLabels: string[], removedCount: number): string {
+  const parts: string[] = [];
+  if (addedLabels.length) {
+    parts.push(
+      `Found ${addedLabels.length} new field${addedLabels.length === 1 ? "" : "s"}: ` +
+      `${addedLabels.join(", ")}. Tick "Form" to show ${addedLabels.length === 1 ? "it" : "them"}.`,
+    );
+  }
+  if (removedCount) {
+    parts.push(`Removed ${removedCount} field${removedCount === 1 ? "" : "s"} whose column no longer exists.`);
+  }
+  if (!parts.length) return "Up to date — no column changes found.";
+  return `${parts.join(" ")} Select Save configuration to keep these changes.`;
 }

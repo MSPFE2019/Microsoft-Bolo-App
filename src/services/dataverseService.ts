@@ -8,10 +8,13 @@ import { displayName } from "../types";
 import type { AppUser, BoloRecord, BoloStatus, NewBoloRecord, RecordKind } from "../types";
 import type { FieldConfig } from "../fieldConfig";
 import { DEFAULT_CONFIG } from "../fieldConfig";
-import { customColumns as buildCustomColumns, customSelect, readCustom as readCustomValues } from "../customColumns";
+import { customColumns as buildCustomColumns, customSelect, readCustom as readCustomValues, toDateInput } from "../customColumns";
 import type { BoloService } from "./boloService";
 
-type PersonRow = Partial<New_personbolos>;
+type PersonRow = Partial<New_personbolos> & {
+  /** Provisioned alongside this build; see scripts/provision-dateofbirth.ps1. */
+  new_dateofbirth?: string | null;
+};
 type VehicleRow = Partial<New_vehiclebolos>;
 type AnyRow = PersonRow & VehicleRow;
 
@@ -25,7 +28,7 @@ export function setDataverseFieldConfig(getter: () => FieldConfig) {
   readConfig = getter;
 }
 
-function customColumns(input: NewBoloRecord): Record<string, string> {
+function customColumns(input: NewBoloRecord): Record<string, string | null> {
   return buildCustomColumns(readConfig(), input);
 }
 
@@ -57,6 +60,7 @@ function toRecord(row: AnyRow, kind: RecordKind): BoloRecord {
     middleName: (row as PersonRow).new_middlename ?? "",
     lastName: (row as PersonRow).new_lastname ?? "",
     aka: (row as PersonRow).new_aka ?? "",
+    dateOfBirth: toDateInput(((row as PersonRow).new_dateofbirth as string | undefined) ?? ""),
     age: (row as PersonRow).new_age ?? "",
     race: splitRace((row as PersonRow).new_race),
     height: (row as PersonRow).new_height ?? "",
@@ -96,6 +100,8 @@ function personColumns(input: NewBoloRecord) {
     new_middlename: input.middleName,
     new_lastname: input.lastName,
     new_aka: input.aka,
+    // A date column rejects "", so an unset date has to clear the column.
+    new_dateofbirth: input.dateOfBirth || null,
     new_age: input.age,
     new_race: input.race.join(";"),
     new_height: input.height,
@@ -169,7 +175,7 @@ async function resolveRole(objectId: string, fallbackRole: AppUser["role"]): Pro
 const PERSON_SELECT_BASE = [
   "new_personboloid", "new_name", "new_bolotype", "new_bolostatus", "new_casenumber",
   "new_casedetails", "new_ownername", "new_photourl", "new_city", "new_state",
-  "new_firstname", "new_middlename", "new_lastname", "new_aka", "new_age",
+  "new_firstname", "new_middlename", "new_lastname", "new_aka", "new_dateofbirth", "new_age",
   "new_race", "new_height", "new_haircolor", "new_eyecolor", "createdon",
 ];
 

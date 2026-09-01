@@ -1,5 +1,4 @@
 import type { FieldDef } from "./fieldConfig";
-import { isPending } from "./fieldConfig";
 import type { NewBoloRecord } from "./types";
 import { fieldValue } from "./types";
 
@@ -14,23 +13,20 @@ interface FieldInputProps {
 export function FieldInput({ field, form, onChange, onPhoto }: FieldInputProps) {
   const value = fieldValue(form, field.key);
   const text = Array.isArray(value) ? "" : value;
-  const pending = isPending(field);
 
   const label = (
     <>
       {field.label}
       {!field.required && field.type !== "multiselect" && <span className="hint">Optional</span>}
-      {pending && <span className="pending-tag" title="Run provision-custom-fields.ps1 to create this column">Pending</span>}
     </>
   );
 
   if (field.type === "multiselect") {
     const selected = Array.isArray(value) ? value : [];
     return (
-      <fieldset className={field.full ? "full checkbox-group" : "checkbox-group"} disabled={pending}>
+      <fieldset className={field.full ? "full checkbox-group" : "checkbox-group"}>
         <legend>
           {field.label} <span className="hint">Select all that apply</span>
-          {pending && <span className="pending-tag">Pending</span>}
         </legend>
         <div className="checkbox-grid">
           {field.options.map((option) => (
@@ -84,7 +80,6 @@ export function FieldInput({ field, form, onChange, onPhoto }: FieldInputProps) 
       {field.type === "select" ? (
         <select
           required={field.required}
-          disabled={pending}
           value={text}
           onChange={(event) => onChange(field.key, event.target.value)}
         >
@@ -97,16 +92,23 @@ export function FieldInput({ field, form, onChange, onPhoto }: FieldInputProps) 
       ) : field.type === "textarea" ? (
         <textarea
           required={field.required}
-          disabled={pending}
           rows={4}
           value={text}
           placeholder={field.placeholder}
           onChange={(event) => onChange(field.key, event.target.value)}
         />
+      ) : field.type === "date" ? (
+        <input
+          type="date"
+          required={field.required}
+          value={text}
+          // A future date of birth is always a typo, so the picker rules it out.
+          max={field.key === "dateOfBirth" ? new Date().toISOString().slice(0, 10) : undefined}
+          onChange={(event) => onChange(field.key, event.target.value)}
+        />
       ) : (
         <input
           required={field.required}
-          disabled={pending}
           value={text}
           placeholder={field.placeholder}
           onChange={(event) =>

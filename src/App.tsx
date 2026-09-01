@@ -38,12 +38,13 @@ import {
   vehicleSummary,
 } from "./types";
 import type { BoloRecord, BoloStatus, NewBoloRecord, RecordKind } from "./types";
-import { DEFAULT_CONFIG, fieldsFor, isPending } from "./fieldConfig";
+import { DEFAULT_CONFIG, fieldsFor } from "./fieldConfig";
 import type { FieldConfig } from "./fieldConfig";
 import { setDataverseFieldConfig } from "./services/dataverseService";
 import { FieldInput } from "./FieldInput";
 import { FieldAdmin } from "./FieldAdmin";
 import { fileToStoredPhoto } from "./photo";
+import logoUrl from "./assets/bolo-shield.png";
 
 const emptyForm: NewBoloRecord = {
   kind: "person",
@@ -54,6 +55,7 @@ const emptyForm: NewBoloRecord = {
   middleName: "",
   lastName: "",
   aka: "",
+  dateOfBirth: "",
   age: "",
   race: [],
   height: "",
@@ -118,6 +120,15 @@ function App() {
     setRecords(await boloService.list());
   }
 
+  /**
+   * Re-reads the table schema so columns added in Power Apps appear without a
+   * redeploy. The config isn't committed here — the admin reviews what was
+   * found and then saves.
+   */
+  async function refreshConfig(): Promise<FieldConfig> {
+    return activeConfigService.refresh();
+  }
+
   useEffect(() => {
     void boloService
       .list()
@@ -153,18 +164,17 @@ function App() {
   const selectedRecord = records.find((record) => record.id === selectedId) ?? null;
   const openCount = records.filter((record) => record.status === "Open").length;
 
-  // Pending fields have no column yet, so showing them on the form would let
-  // someone type a value that silently vanishes on save.
+  // Every configured field is backed by a real column, so all of them render.
   const formFields = useMemo(
-    () => fieldsFor(config, form.kind).filter((field) => !isPending(field)),
+    () => fieldsFor(config, form.kind),
     [config, form.kind],
   );
   const cardFields = useMemo(
-    () => fieldsFor(config, kind, { onCard: true }).filter((field) => !isPending(field)),
+    () => fieldsFor(config, kind, { onCard: true }),
     [config, kind],
   );
   const detailFields = useMemo(
-    () => (selectedRecord ? fieldsFor(config, selectedRecord.kind).filter((field) => !isPending(field)) : []),
+    () => (selectedRecord ? fieldsFor(config, selectedRecord.kind) : []),
     [config, selectedRecord],
   );
 
@@ -249,7 +259,10 @@ function App() {
   return (
     <div className="app-shell">
       <header className="topbar">
-        <div className="brand"><span className="brand-mark">B</span><span>BOLO App</span></div>
+        <div className="brand">
+          <img className="brand-logo" src={logoUrl} alt="" />
+          <span>BOLO App</span>
+        </div>
         <div className="topbar-right">
           <span className="environment">{currentUser.name} · {currentUser.role === "admin" ? "Administrator" : "Officer"} · {canManage ? "Dispatch console" : "Field lookup"}</span>
           <div className="clock">
@@ -319,7 +332,11 @@ function App() {
           </div>
           <div className="record-list">
             {visibleRecords.map((record) => (
-              <article className="record-card" key={record.id} onClick={() => setSelectedId(record.id)} role="button" tabIndex={0}
+              <article
+                className={record.id === selectedId ? "record-card selected" : "record-card"}
+                key={record.id}
+                aria-current={record.id === selectedId}
+                onClick={() => setSelectedId(record.id)} role="button" tabIndex={0}
                 onKeyDown={(event) => (event.key === "Enter" || event.key === " ") && setSelectedId(record.id)}>
                 {record.photoUrl
                   ? <img className="record-photo" src={record.photoUrl} alt={displayName(record)} />
@@ -426,7 +443,7 @@ function App() {
         </form>
       </div>}
       {showAdmin && isAdmin && (
-        <FieldAdmin config={config} onSave={saveConfig} onClose={() => setShowAdmin(false)} />
+        <FieldAdmin config={config} onRefresh={refreshConfig} onSave={saveConfig} onClose={() => setShowAdmin(false)} />
       )}
     </div>
   );

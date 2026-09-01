@@ -110,25 +110,44 @@ Administrators see a **⚙ Customize fields** button on the main page. It lets y
 - Rename field labels
 - Mark fields required
 - Edit the choices in any dropdown or checkbox list
-- Add brand-new custom fields
 
 Changes are saved to Dataverse and apply to **everyone** using the app.
 
-### Important: adding a *new* field takes two steps
+### Adding a new field
 
-Power Apps code apps cannot create Dataverse columns while running. So adding a field is a two-step process:
+You add fields **to the Dataverse table**, and the app picks them up. Nothing is created from inside the app, so a field always has real storage behind it.
 
-**Step 1 — In the app.** Add the field in the Customize fields screen and save. It appears with a **Pending** tag and is *not* yet usable — it's hidden from the form so nobody can type data that would be thrown away.
+**Step 1 — Add the column in Power Apps.**
 
-**Step 2 — Run the provisioning script.** This creates the real Dataverse column and flips the field to live:
+1. Go to [make.powerapps.com](https://make.powerapps.com) and select **Tables**.
+2. Open **Person BOLO** (`new_personbolo`) or **Vehicle BOLO** (`new_vehiclebolo`).
+   *Add the column to both tables if the field should apply to both.*
+3. Select **+ New column**, give it a display name, pick a data type, and **Save**.
 
-```powershell
-./scripts/provision-custom-fields.ps1
-```
+**Step 2 — Refresh in the app.**
 
-The script will prompt you to sign in. After it finishes, refresh the app and the field is ready to use.
+1. Open **⚙ Customize fields**.
+2. Select **↻ Refresh from Dataverse**. New columns are listed with a summary of what changed.
+3. Tick **Form** and/or **Card** to decide where the field appears, then **Save configuration**.
 
-Hiding, reordering, renaming, and editing choices all take effect **immediately** — only *adding a new field* needs the script.
+New fields start hidden, so a column added for some other purpose never disrupts the form until you choose to show it.
+
+### Removing a field
+
+Delete the column in Power Apps, then select **↻ Refresh from Dataverse** and **Save configuration**. The field disappears from the app. Built-in fields cannot be deleted, but you can untick **Form** to hide them.
+
+### Which column types are supported
+
+| Dataverse type | Appears in the app as |
+| --- | --- |
+| Text | Single-line box |
+| Text (long) / Multiline | Multi-line box |
+| Date and time | Date picker |
+| Choice | Dropdown |
+| Yes/No | Dropdown |
+| Whole number, Decimal, Currency | Single-line box |
+
+Lookup, customer, and owner columns are skipped, because they reference other records rather than holding a plain value.
 
 ---
 
@@ -198,11 +217,12 @@ After pushing, re-export both `.zip` files from **make.powerapps.com** → **Sol
 | `src/fieldConfig.ts` | Defines every built-in field and the config format |
 | `src/FieldAdmin.tsx` | The **Customize fields** admin screen |
 | `src/FieldInput.tsx` | Renders a single form field |
-| `src/customColumns.ts` | Maps custom fields to Dataverse columns |
+| `src/customColumns.ts` | Maps discovered fields to Dataverse columns |
+| `src/services/schemaService.ts` | Reads the live table schema to discover added columns |
 | `src/services/boloService.ts` | Sample data used when running locally |
 | `src/services/dataverseService.ts` | Real Dataverse reads/writes and the admin role check |
 | `src/services/configService.ts` | Saves and loads the field configuration |
-| `scripts/` | PowerShell setup and provisioning scripts |
+| `scripts/` | PowerShell setup scripts |
 | `solutions/` | Importable managed and unmanaged solution files |
 
 The app talks to Dataverse through one interface (`BoloService`), with two implementations — sample data locally, Dataverse when deployed. Everything else is unaware of which one is in use.
@@ -215,7 +235,7 @@ The app talks to Dataverse through one interface (`BoloService`), with two imple
 You need the `BOLO Administrator` security role. Assign it in the admin center (see [above](#after-importing-assign-security-roles)), then hard-refresh the app with `Ctrl`+`Shift`+`R`. If it still doesn't appear, open your browser console (`F12`) and look for a line starting with `[BOLO] role check` — it reports the role the app resolved and why.
 
 **A field I added doesn't show up on the form.**
-It's still **Pending**. Run `./scripts/provision-custom-fields.ps1`, then refresh.
+Open **⚙ Customize fields**, select **↻ Refresh from Dataverse**, tick **Form** next to the field, then **Save configuration**. If Refresh doesn't find it, confirm you added the column to the right table (`new_personbolo` for people, `new_vehiclebolo` for vehicles) and that its type is one of the [supported types](#which-column-types-are-supported).
 
 **The app is blank or shows a loading error.**
 Usually a missing security role. Confirm the user has `BOLO Officer` or `BOLO Administrator`.

@@ -1,6 +1,7 @@
 import { New_boloconfigsService } from "../generated/services/New_boloconfigsService";
 import type { FieldConfig } from "../fieldConfig";
-import { DEFAULT_CONFIG, mergeWithBuiltins } from "../fieldConfig";
+import { mergeConfig } from "../fieldConfig";
+import { discoverFields } from "./schemaService";
 import type { ConfigService } from "./configService";
 
 interface ConfigRow {
@@ -12,9 +13,11 @@ const SELECT = ["new_boloconfigid", "new_configjson"];
 
 /**
  * Stores the field configuration in a single Dataverse row so every user of
- * the app sees the same form. Falls back to the caller's local service if the
- * config table isn't reachable, which keeps the app usable rather than failing
- * to start.
+ * the app sees the same form, and reconciles it against the live table schema
+ * so columns added or removed in Power Apps are picked up.
+ *
+ * Falls back to the caller's local service if the config table isn't
+ * reachable, which keeps the app usable rather than failing to start.
  */
 export function createDataverseConfigService(fallback: ConfigService): ConfigService {
   let rowId: string | null = null;
@@ -27,16 +30,47 @@ export function createDataverseConfigService(fallback: ConfigService): ConfigSer
     return row;
   }
 
+  /**
+   * Schema discovery is best-effort: if the metadata call fails the app should
+   * still open with its built-in fields rather than showing nothing. Returning
+   * an empty list makes mergeConfig preserve saved fields untouched.
+   */
+  async function safeDiscover() {
+    try {
+      return await discoverFields();
+    } catch (error) {
+      console.warn("[BOLO] could not read table schema; keeping saved fields.", error);
+      return [];
+    }
+  }
+
+  async function loadMerged(): Promise<FieldConfig> {
+    const [row, discovered] = await Promise.all([readRow(), safeDiscover()]);
+    const saved = row?.new_configjson ? (JSON.parse(row.new_configjson) as FieldConfig) : null;
+    return mergeConfig(saved, discovered);
+  }
+
   return {
     async load() {
       try {
-        const row = await readRow();
-        if (!row?.new_configjson) return DEFAULT_CONFIG;
-        return mergeWithBuiltins(JSON.parse(row.new_configjson) as FieldConfig);
+        return await loadMerged();
       } catch (error) {
         console.warn("Field config table unavailable; using local config.", error);
         unavailable = true;
         return fallback.load();
+      }
+    },
+
+    async refresh() {
+      if (unavailable) return fallback.refresh();
+      try {
+        return await loadMerged();
+      } catch (error) {
+        throw new Error(
+          error instanceof Error
+            ? `Could not read the table schema: ${error.message}`
+            : "Could not read the table schema.",
+        );
       }
     },
 

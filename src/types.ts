@@ -28,6 +28,8 @@ export interface BoloRecord {
   middleName: string;
   lastName: string;
   aka: string;
+  /** Date-only ISO string (YYYY-MM-DD). Optional. */
+  dateOfBirth: string;
   age: string;
   race: string[];
   height: string;
